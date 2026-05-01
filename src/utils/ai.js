@@ -123,7 +123,7 @@ export async function callLLM(prompt, options = {}) {
     messages: [
       {
         role: 'system',
-        content: options.systemPrompt || '你是一位资深的职业分析师和 HR 专家，擅长深度解析职位描述（JD），揭示真实的工作内容、技能要求和隐藏信息。你的分析客观、深入、实用。请始终以 JSON 格式返回结果。',
+        content: options.systemPrompt || '你是一位资深的职业分析师和 HR 专家。请只返回纯 JSON 数据，不要包含任何解释文字、markdown标记或代码块标记。JSON格式必须严格符合要求。',
       },
       {
         role: 'user',
@@ -134,7 +134,7 @@ export async function callLLM(prompt, options = {}) {
     max_tokens: options.maxTokens ?? config.maxTokens,
   }
 
-  if (options.responseFormat === 'json_object') {
+  if (options.responseFormat !== false) {
     body.response_format = { type: 'json_object' }
   }
 
@@ -322,6 +322,7 @@ function findBalancedJsonCandidates(text) {
 }
 
 function tryParseJson(text) {
+  if (!text) return null
   const sanitized = sanitizeJsonCandidate(text)
   const parsed = safeJsonParse(sanitized)
   if (parsed !== null) return parsed
@@ -338,35 +339,52 @@ function extractJSON(text) {
 
   const trimmed = text.trim()
 
-  const parsed = tryParseJson(trimmed)
-  if (parsed !== null) return parsed
+  const strategies = [
+    () => tryParseJson(trimmed),
+    () => {
+      const firstBrace = trimmed.indexOf('{')
+      const lastBrace = trimmed.lastIndexOf('}')
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        return tryParseJson(trimmed.slice(firstBrace, lastBrace + 1))
+      }
+      return null
+    },
+    () => {
+      const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/)
+      return match ? tryParseJson(match[1].trim()) : null
+    },
+    () => {
+      const candidates = findBalancedJsonCandidates(trimmed)
+      for (const c of candidates) {
+        const p = tryParseJson(c)
+        if (p !== null) return p
+      }
+      return null
+    },
+    () => {
+      const stripped = trimmed
+        .replace(/^[\s\S]*?\{/, '{')
+        .replace(/\}[\s\S]*$/, '}')
+      return tryParseJson(stripped)
+    },
+    () => {
+      const match = trimmed.match(/\{[\s\S]*\}/)
+      return match ? tryParseJson(match[0]) : null
+    },
+  ]
 
-  const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)```/gi
-  const codeBlocks = []
-  let match
-  while ((match = codeBlockRegex.exec(trimmed)) !== null) {
-    codeBlocks.push(match[1].trim())
+  for (const strategy of strategies) {
+    try {
+      const result = strategy()
+      if (result !== null && typeof result === 'object') {
+        return result
+      }
+    } catch (_) {
+    }
   }
 
-  for (const block of codeBlocks) {
-    const p = tryParseJson(block)
-    if (p !== null) return p
-  }
-
-  const balancedCandidates = findBalancedJsonCandidates(trimmed)
-  for (const candidate of balancedCandidates) {
-    const p = tryParseJson(candidate)
-    if (p !== null) return p
-  }
-
-  const jsonLikeRegex = /\{[\s\S]*?"[\s\S]*?\}/
-  const jsonLikeMatch = trimmed.match(jsonLikeRegex)
-  if (jsonLikeMatch) {
-    const p = tryParseJson(jsonLikeMatch[0])
-    if (p !== null) return p
-  }
-
-  throw new Error('无法解析 AI 返回的 JSON 数据，请重试')
+  const preview = trimmed.length > 300 ? trimmed.slice(0, 300) + '...(已截断)' : trimmed
+  throw new Error(`无法解析 AI 返回的 JSON 数据，请重试\n\nAI原始返回：${preview}`)
 }
 
 function validateParsedResult(parsed, validator) {
