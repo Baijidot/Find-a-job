@@ -37,10 +37,10 @@ const DEFAULT_CONFIG = {
   baseUrl: 'https://api.openai.com/v1',
   model: 'gpt-4o-mini',
   temperature: 0.7,
-  maxTokens: 8192,
+  maxTokens: 16384,
 }
 
-const DEFAULT_TIMEOUT_MS = 60000
+const DEFAULT_TIMEOUT_MS = 90000
 const DEFAULT_RETRY_TIMES = 2
 
 export function getConfig() {
@@ -65,7 +65,7 @@ export function saveConfig(config) {
 
 // ==================== 输入截断 ====================
 
-const MAX_INPUT_CHARS = 8000
+const MAX_INPUT_CHARS = 5000
 
 function estimateTokens(text) {
   return Math.ceil(text.length / 1.5)
@@ -123,7 +123,7 @@ export async function callLLM(prompt, options = {}) {
     messages: [
       {
         role: 'system',
-        content: options.systemPrompt || '你是一位资深的职业分析师和 HR 专家。请只返回纯 JSON 数据，不要包含任何解释文字、markdown标记或代码块标记。JSON格式必须严格符合要求。',
+        content: options.systemPrompt || '你是一位资深的职业分析师和 HR 专家。请只返回纯 JSON 数据，不要包含任何解释文字。每条描述控制在1句话以内，保持简洁。',
       },
       {
         role: 'user',
@@ -385,10 +385,12 @@ function extractJSON(text) {
 
   const trimmedStart = trimmed.trimStart()
   if (trimmedStart.startsWith('{') && !trimmed.endsWith('}')) {
+    console.error('JSON被截断，完整原始返回:', text)
     throw new Error('AI 返回被截断（max_tokens 不足）。请增大 max_tokens 或缩短输入内容后重试')
   }
 
-  const preview = trimmed.length > 300 ? trimmed.slice(0, 300) + '...(已截断)' : trimmed
+  console.error('JSON解析失败，完整原始返回:', text)
+  const preview = trimmed.length > 500 ? trimmed.slice(0, 500) + '...(已截断)' : trimmed
   throw new Error(`无法解析 AI 返回的 JSON 数据，请重试\n\nAI原始返回：${preview}`)
 }
 
@@ -408,7 +410,8 @@ async function callAndParse(prompt, options = {}) {
     const parsed = extractJSON(raw)
     return validateParsedResult(parsed, options.validator)
   } catch (parseError) {
-    console.warn('JSON解析失败，原始返回内容:', raw.slice(0, 500))
+    console.warn('JSON解析失败，原始返回(前1000字):', raw.slice(0, 1000))
+    console.warn('原始返回总长度:', raw.length, '字符')
     throw parseError
   }
 }
@@ -420,41 +423,20 @@ async function callAndParse(prompt, options = {}) {
  * 视角：从求职者利益出发，揭示JD背后的真相
  */
 export async function analyzeJD(jd) {
-  const prompt = `你是一位经验丰富的求职顾问，请帮求职者快速判断这个岗位"值不值得投"。
+  const prompt = `作为求职顾问，判断这个岗位值不值得投。请只返回JSON，每个字段1-2句话，不要展开。
 
-重点分析：
-1. 这个岗位的真实日常工作是什么（不是JD写的漂亮话，而是实际要干的活）
-2. JD中没有明说但实际需要的能力和条件（隐藏门槛）
-3. 有没有"坑"或风险信号（比如996、PUA、虚假薪资范围等）
-4. 薪资范围在当前市场是否合理
-
-请以如下 JSON 格式返回：
+JSON格式（严格遵守）：
 {
-  "summary": "一句话总结：这个岗位值不值得投，为什么",
+  "summary": "一句话总结",
   "verdict": "推荐投递/谨慎考虑/不建议投递",
-  "dailyReality": [
-    "真实日常工作1：具体描述",
-    "真实日常工作2：具体描述",
-    "真实日常工作3：具体描述"
-  ],
-  "hiddenRequirements": [
-    "隐藏要求1：具体描述",
-    "隐藏要求2：具体描述"
-  ],
-  "redFlags": [
-    "风险信号1：具体描述",
-    "风险信号2：具体描述"
-  ],
-  "salaryInsight": [
-    "薪资分析1：具体描述",
-    "薪资分析2：具体描述"
-  ]
+  "dailyReality": ["日常1", "日常2", "日常3"],
+  "hiddenRequirements": ["隐藏要求1", "隐藏要求2"],
+  "redFlags": ["风险1", "风险2"],
+  "salaryInsight": ["薪资分析1", "薪资分析2"]
 }
 
-以下是职位描述：
----
-${jd}
----`
+JD：
+---\n${jd}\n---`
 
   return await callAndParse(prompt, { validator: validateAnalyzeJDResult })
 }
@@ -855,7 +837,7 @@ ${jd}
 --- 候选人简历 ---
 ${resume}`
 
-  return await callAndParse(prompt, { maxTokens: 8192, validator: validateResumeMatchResult })
+  return await callAndParse(prompt, { maxTokens: 16384, validator: validateResumeMatchResult })
 }
 
 // ==================== 7. 面试问题生成（面试准备视角）====================
@@ -910,7 +892,7 @@ export async function generateInterviewQuestions(jd) {
 --- 目标岗位 JD ---
 ${jd}`
 
-  return await callAndParse(prompt, { maxTokens: 8192, validator: validateInterviewPrepResult })
+  return await callAndParse(prompt, { maxTokens: 16384, validator: validateInterviewPrepResult })
 }
 
 // ==================== 导出 ====================
