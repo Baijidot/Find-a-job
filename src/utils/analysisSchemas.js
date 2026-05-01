@@ -307,6 +307,100 @@ export function validateResumeMatchResult(value) {
   }
 }
 
+export function validateMockInterviewResult(value) {
+  const data = asObject(value, 'mockInterview')
+  return {
+    summary: asString(data.summary, 'summary'),
+    questions: asArray(data.questions, 'questions', (item, field) => {
+      const entry = asObject(item, field)
+      return {
+        id: asNumber(entry.id, `${field}.id`),
+        question: asString(entry.question, `${field}.question`),
+        category: asString(entry.category, `${field}.category`),
+        difficulty: asString(entry.difficulty, `${field}.difficulty`),
+        expectedPoints: stringList(entry.expectedPoints, `${field}.expectedPoints`),
+        scoringGuide: asString(entry.scoringGuide, `${field}.scoringGuide`),
+        followUp: asString(entry.followUp, `${field}.followUp`, { optional: true }),
+      }
+    }),
+  }
+}
+
+export function validateEvaluateAnswerResult(value) {
+  const data = asObject(value, 'evaluateAnswer')
+  return {
+    score: asNumber(data.score, 'score'),
+    strengths: stringList(data.strengths, 'strengths'),
+    weaknesses: stringList(data.weaknesses, 'weaknesses'),
+    feedback: asString(data.feedback, 'feedback'),
+    improvement: stringList(data.improvement, 'improvement'),
+    referenceAnswer: asString(data.referenceAnswer, 'referenceAnswer', { optional: true }),
+  }
+}
+
+export function validateSkillGapResult(value) {
+  const data = asObject(value, 'skillGap')
+  return {
+    summary: asString(data.summary, 'summary'),
+    overallMatch: asNumber(data.overallMatch, 'overallMatch'),
+    skills: asArray(data.skills, 'skills', (item, field) => {
+      const entry = asObject(item, field)
+      return {
+        name: asString(entry.name, `${field}.name`),
+        required: asNumber(entry.required, `${field}.required`),
+        current: asNumber(entry.current, `${field}.current`),
+        gap: asNumber(entry.gap, `${field}.gap`),
+        category: asString(entry.category, `${field}.category`),
+        importance: asString(entry.importance, `${field}.importance`),
+        suggestion: asString(entry.suggestion, `${field}.suggestion`, { optional: true }),
+      }
+    }),
+    criticalGaps: stringList(data.criticalGaps, 'criticalGaps'),
+    strengths: stringList(data.strengths, 'strengths'),
+    learningPlan: asArray(data.learningPlan, 'learningPlan', (item, field) => {
+      const entry = asObject(item, field)
+      return {
+        priority: asNumber(entry.priority, `${field}.priority`),
+        skill: asString(entry.skill, `${field}.skill`),
+        timeline: asString(entry.timeline, `${field}.timeline`, { optional: true }),
+        resources: asString(entry.resources, `${field}.resources`, { optional: true }),
+      }
+    }, { optional: true }),
+  }
+}
+
+export function validateSalaryCredibilityResult(value) {
+  const data = asObject(value, 'salaryCredibility')
+  return {
+    summary: asString(data.summary, 'summary'),
+    extractedSalary: data.extractedSalary ? {
+      min: asNumber(data.extractedSalary.min, 'extractedSalary.min', { optional: true }),
+      max: asNumber(data.extractedSalary.max, 'extractedSalary.max', { optional: true }),
+      period: asString(data.extractedSalary.period, 'extractedSalary.period', { optional: true }),
+      months: asNumber(data.extractedSalary.months, 'extractedSalary.months', { optional: true }),
+      raw: asString(data.extractedSalary.raw, 'extractedSalary.raw', { optional: true }),
+    } : null,
+    credibilityScore: asNumber(data.credibilityScore, 'credibilityScore'),
+    waterIndex: asNumber(data.waterIndex, 'waterIndex'),
+    marketComparison: data.marketComparison ? {
+      marketAvg: asNumber(data.marketComparison.marketAvg, 'marketComparison.marketAvg', { optional: true }),
+      marketRange: asString(data.marketComparison.marketRange, 'marketComparison.marketRange', { optional: true }),
+      position: asString(data.marketComparison.position, 'marketComparison.position', { optional: true }),
+      analysis: asString(data.marketComparison.analysis, 'marketComparison.analysis', { optional: true }),
+    } : null,
+    risks: asArray(data.risks, 'risks', (item, field) => {
+      const entry = asObject(item, field)
+      return {
+        type: asString(entry.type, `${field}.type`),
+        description: asString(entry.description, `${field}.description`),
+        severity: asString(entry.severity, `${field}.severity`),
+      }
+    }, { optional: true }),
+    negotiationTips: stringList(data.negotiationTips, 'negotiationTips'),
+    verdict: asString(data.verdict, 'verdict'),
+  }
+}
+
 export function validateInterviewPrepResult(value) {
   const data = asObject(value, 'generateInterviewQuestions')
   return {

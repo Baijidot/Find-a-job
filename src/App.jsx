@@ -12,6 +12,9 @@ import RoleBreakdown from './components/pages/RoleBreakdown'
 import CompareAnalysis from './components/pages/CompareAnalysis'
 import ResumeMatch from './components/pages/ResumeMatch'
 import InterviewPrep from './components/pages/InterviewPrep'
+import MockInterview from './components/pages/MockInterview'
+import SkillGap from './components/pages/SkillGap'
+import SalaryCheck from './components/pages/SalaryCheck'
 import Favorites from './components/pages/Favorites'
 import History from './components/pages/History'
 import HelpFeedback from './components/pages/HelpFeedback'
@@ -144,6 +147,12 @@ export default function App() {
         return <ResumeMatch />
       case 'interview':
         return <InterviewPrep />
+      case 'mockInterview':
+        return <MockInterview />
+      case 'skillGap':
+        return <SkillGap />
+      case 'salaryCheck':
+        return <SalaryCheck />
       case 'insights':
         return <InsightReport />
       case 'skills':

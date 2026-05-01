@@ -1,7 +1,10 @@
 const navItems = [
   { id: 'analyze', label: '分析 JD', icon: 'search' },
   { id: 'resume', label: '简历匹配', icon: 'fileCheck' },
+  { id: 'mockInterview', label: '模拟面试', icon: 'mic' },
   { id: 'interview', label: '面试准备', icon: 'message' },
+  { id: 'skillGap', label: '技能差距', icon: 'target' },
+  { id: 'salaryCheck', label: '薪资检测', icon: 'dollar' },
   { id: 'insights', label: '洞察报告', icon: 'chart' },
   { id: 'skills', label: '技能提取', icon: 'code' },
   { id: 'roles', label: '角色拆解', icon: 'users' },
@@ -83,6 +86,27 @@ const icons = {
         </linearGradient>
       </defs>
       <path d="M12 2L14.09 8.26L20 9.27L15.54 13.47L16.82 19.27L12 16.02L7.18 19.27L8.46 13.47L4 9.27L9.91 8.26L12 2Z" fill="url(#sparkle-grad)" />
+    </svg>
+  ),
+  mic: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+  ),
+  target: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  ),
+  dollar: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
     </svg>
   ),
 }

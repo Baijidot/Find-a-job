@@ -20,6 +20,10 @@ import {
   validateCompareResult,
   validateResumeMatchResult,
   validateInterviewPrepResult,
+  validateMockInterviewResult,
+  validateEvaluateAnswerResult,
+  validateSkillGapResult,
+  validateSalaryCredibilityResult,
 } from './analysisSchemas'
 
 // ==================== 配置管理 ====================
@@ -795,5 +799,174 @@ ${jd}`
 }
 
 // ==================== 导出 ====================
+
+// ==================== 7. AI模拟面试 ====================
+
+export async function generateMockInterview(jd) {
+  const prompt = `你是一位资深技术面试官。请基于以下JD，生成一场模拟面试的问题列表。
+
+要求：
+1. 生成5个面试问题，覆盖不同考察维度
+2. 每个问题包含：题目、考察维度、难度、参考答案要点、评分标准
+3. 问题要有层次：从基础到深入，从技术到软技能
+4. 每个问题附带一个"面试官追问"（如果候选人回答不够深入时的追问）
+
+请以如下 JSON 格式返回：
+{
+  "summary": "这场面试的整体定位和考察重点（2-3句话）",
+  "questions": [
+    {
+      "id": 1,
+      "question": "面试问题",
+      "category": "技术基础/项目经验/系统设计/行为面试/情景题",
+      "difficulty": "简单/中等/困难",
+      "expectedPoints": ["参考答案要点1", "要点2", "要点3"],
+      "scoringGuide": "评分标准说明（1-2句话）",
+      "followUp": "如果回答不够深入时的追问"
+    }
+  ]
+}
+
+以下是职位描述：
+---
+${jd}
+---`
+
+  return await callAndParse(prompt, { maxTokens: 4096, validator: validateMockInterviewResult })
+}
+
+export async function evaluateInterviewAnswer(question, answer, jdContext) {
+  const prompt = `你是一位资深技术面试官。请评估候选人对以下面试问题的回答。
+
+评估要求：
+1. 给出0-100分的评分
+2. 分析回答的优点和不足
+3. 给出具体的改进建议
+4. 如果回答不完整，补充参考答案
+
+面试背景（JD）：
+---
+${jdContext}
+---
+
+面试问题：
+${question}
+
+候选人回答：
+${answer}
+
+请以如下 JSON 格式返回：
+{
+  "score": 75,
+  "strengths": ["优点1", "优点2"],
+  "weaknesses": ["不足1", "不足2"],
+  "feedback": "综合评价（2-3句话）",
+  "improvement": ["改进建议1", "改进建议2"],
+  "referenceAnswer": "参考答案（如果候选人回答不完整则补充）"
+}`
+
+  return await callAndParse(prompt, { maxTokens: 4096, validator: validateEvaluateAnswerResult })
+}
+
+// ==================== 8. 技能差距热力图 ====================
+
+export async function analyzeSkillGap(jd, mySkills) {
+  const prompt = `你是一位技能评估专家。请对比以下JD要求和候选人的技能栈，分析差距。
+
+分析要求：
+1. 将JD要求的技能和候选人技能逐一对比
+2. 每个技能给出匹配度（0-100）
+3. 识别关键差距（匹配度低于50的技能）
+4. 给出整体匹配度评分
+5. 推荐弥补差距的学习路径
+
+请以如下 JSON 格式返回：
+{
+  "summary": "整体技能匹配总结（2-3句话）",
+  "overallMatch": 65,
+  "skills": [
+    {
+      "name": "技能名称",
+      "required": 85,
+      "current": 60,
+      "gap": 25,
+      "category": "前端/后端/数据库/DevOps/软技能/工具",
+      "importance": "关键/重要/加分项",
+      "suggestion": "如何提升（具体建议）"
+    }
+  ],
+  "criticalGaps": ["最需要补的关键技能1", "技能2"],
+  "strengths": ["候选人明显优势的技能1", "技能2"],
+  "learningPlan": [
+    {
+      "priority": 1,
+      "skill": "技能名称",
+      "timeline": "建议学习时间",
+      "resources": "推荐学习资源"
+    }
+  ]
+}
+
+以下是职位描述：
+---
+${jd}
+---
+
+以下是候选人的技能栈：
+---
+${mySkills}
+---`
+
+  return await callAndParse(prompt, { maxTokens: 4096, validator: validateSkillGapResult })
+}
+
+// ==================== 9. 薪资可信度检测 ====================
+
+export async function checkSalaryCredibility(jd) {
+  const prompt = `你是一位薪资分析专家。请分析以下JD中的薪资信息是否可信。
+
+分析要求：
+1. 提取JD中的薪资范围（如果有）
+2. 判断薪资在当前市场是否合理
+3. 给出"水分指数"（0-100，越高越不可信）
+4. 分析可能存在的薪资陷阱（如：包含绩效/年终、税前税后差异等）
+5. 给出谈判建议
+
+请以如下 JSON 格式返回：
+{
+  "summary": "薪资可信度总结（2-3句话）",
+  "extractedSalary": {
+    "min": 15000,
+    "max": 25000,
+    "period": "月薪",
+    "months": 14,
+    "raw": "JD中薪资原文"
+  },
+  "credibilityScore": 75,
+  "waterIndex": 25,
+  "marketComparison": {
+    "marketAvg": 20000,
+    "marketRange": "15000-28000",
+    "position": "偏低/合理/偏高",
+    "analysis": "市场对比分析（2-3句话）"
+  },
+  "risks": [
+    {
+      "type": "薪资陷阱类型",
+      "description": "具体描述",
+      "severity": "高/中/低"
+    }
+  ],
+  "negotiationTips": ["谈判建议1", "建议2", "建议3"],
+  "verdict": "可信/基本可信/需谨慎/不可信"
+}
+
+以下是职位描述：
+---
+${jd}
+---`
+
+  return await callAndParse(prompt, { maxTokens: 4096, validator: validateSalaryCredibilityResult })
+}
 
 export { callAndParse }
