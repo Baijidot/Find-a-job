@@ -332,6 +332,43 @@ function tryParseJson(text) {
   return safeJsonParse(unescaped)
 }
 
+
+
+function repairTruncatedJSON(text) {
+  if (!text || typeof text !== 'string') return null
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('{') || trimmed.endsWith('}')) return null
+
+  let repaired = trimmed
+  let inString = false
+  let escaped = false
+  const stack = []
+
+  for (let i = 0; i < repaired.length; i += 1) {
+    const char = repaired[i]
+    if (escaped) { escaped = false; continue }
+    if (char === '\\') { escaped = true; continue }
+    if (char === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (char === '{' || char === '[') {
+      stack.push(char === '{' ? '}' : ']')
+    } else if ((char === '}' || char === ']') && stack.length > 0) {
+      stack.pop()
+    }
+  }
+
+  if (inString) repaired += '"'
+  repaired = repaired.replace(/,\s*$/, '')
+  while (stack.length > 0) repaired += stack.pop()
+
+  try {
+    const parsed = safeJsonParse(sanitizeJsonCandidate(repaired))
+    if (parsed !== null && typeof parsed === 'object') return parsed
+  } catch (_) {}
+
+  return null
+}
+
 function extractJSON(text) {
   if (!text || typeof text !== 'string') {
     throw new Error('无法解析 AI 返回的 JSON 数据，请重试')
@@ -371,6 +408,7 @@ function extractJSON(text) {
       const match = trimmed.match(/\{[\s\S]*\}/)
       return match ? tryParseJson(match[0]) : null
     },
+    () => repairTruncatedJSON(trimmed),
   ]
 
   for (const strategy of strategies) {
@@ -385,13 +423,10 @@ function extractJSON(text) {
 
   const trimmedStart = trimmed.trimStart()
   if (trimmedStart.startsWith('{') && !trimmed.endsWith('}')) {
-    console.error('JSON被截断，完整原始返回:', text)
     throw new Error('AI 返回被截断（max_tokens 不足）。请增大 max_tokens 或缩短输入内容后重试')
   }
 
-  console.error('JSON解析失败，完整原始返回:', text)
-  const preview = trimmed.length > 500 ? trimmed.slice(0, 500) + '...(已截断)' : trimmed
-  throw new Error(`无法解析 AI 返回的 JSON 数据，请重试\n\nAI原始返回：${preview}`)
+  throw new Error(`无法解析 AI 返回的 JSON 数据，请重试`)
 }
 
 function validateParsedResult(parsed, validator) {
@@ -410,8 +445,6 @@ async function callAndParse(prompt, options = {}) {
     const parsed = extractJSON(raw)
     return validateParsedResult(parsed, options.validator)
   } catch (parseError) {
-    console.warn('JSON解析失败，原始返回(前1000字):', raw.slice(0, 1000))
-    console.warn('原始返回总长度:', raw.length, '字符')
     throw parseError
   }
 }
@@ -446,29 +479,18 @@ JD：
  * 定位：快速列出需要什么技能，按优先级排序
  */
 export async function analyzeSkills(jd) {
-  const prompt = `请快速分析以下JD中所需的全部技能，按求职者需要掌握的优先级排序。
+  const prompt = `分析JD所需技能，按优先级排序。只返回JSON，每条1句话。
 
-要求：
-1. 提取所有技术技能和软技能
-2. 按优先级分为5档：必须掌握、核心技能、重要技能、加分技能、了解即可
-3. 每个技能用一句话说明为什么需要
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "整体技能画像总结（2-3句话）",
+  "summary": "技能画像总结（1句话）",
   "skills": [
-    {
-      "name": "技能名称",
-      "level": "必须掌握/核心技能/重要技能/加分技能/了解即可",
-      "reason": "为什么需要这个技能（一句话）"
-    }
+    {"name": "技能名", "level": "必须掌握/核心技能/重要技能/加分技能/了解即可", "reason": "为什么需要（1句话）"}
   ]
 }
 
-以下是职位描述：
----
-${jd}
----`
+JD：
+---\n${jd}\n---`
 
   return await callAndParse(prompt, { validator: validateAnalyzeSkillsResult })
 }
@@ -479,42 +501,38 @@ ${jd}
  */
 export async function generatePlan(jd, skills) {
   const skillsText = typeof skills === 'string'
-    ? skills
-    : JSON.stringify(skills, null, 2)
+    ? truncateText(skills, 2000)
+    : truncateText(JSON.stringify(skills, null, 0), 2000)
 
-  const prompt = `基于以下JD和技能分析结果，为求职者生成一个"投递前准备计划"。
+  const prompt = `基于JD和技能分析，生成投递准备计划。只返回JSON，每条1句话，每阶段最多3个任务。
 
-要求：
-1. 分3个阶段：投递前准备（1周内）、面试准备（1个月内）、入职前提升（3个月内）
-2. 每个阶段包含具体可执行的任务
-3. 任务要具体、可衡量
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "整体准备计划概述（2-3句话）",
+  "summary": "准备计划概述（1句话）",
   "phases": [
     {
-      "title": "阶段名称",
-      "timeline": "时间范围",
-      "items": [
-        {
-          "title": "具体任务",
-          "detail": "详细说明"
-        }
-      ]
+      "title": "投递前准备",
+      "timeline": "1周内",
+      "items": [{"title": "任务", "detail": "说明（1句话）"}]
+    },
+    {
+      "title": "面试准备",
+      "timeline": "1个月内",
+      "items": [{"title": "任务", "detail": "说明（1句话）"}]
+    },
+    {
+      "title": "入职前提升",
+      "timeline": "3个月内",
+      "items": [{"title": "任务", "detail": "说明（1句话）"}]
     }
   ]
 }
 
-以下是职位描述：
----
-${jd}
----
+JD：
+---\n${jd}\n---
 
-以下是技能分析结果：
----
-${skillsText}
----`
+技能分析：
+---\n${skillsText}\n---`
 
   return await callAndParse(prompt, { validator: validateGeneratePlanResult })
 }
@@ -527,60 +545,28 @@ ${skillsText}
  * 与首页的区别：首页关注"这个岗位本身"，洞察报告关注"这类岗位在市场中的位置"
  */
 export async function generateInsight(jd) {
-  const prompt = `你是一位资深的行业分析师和职业规划师。请从宏观市场角度深度分析以下JD所代表的岗位。
+  const prompt = `从宏观市场角度分析这个岗位。只返回JSON，每条1句话。
 
-注意：不要重复分析"日常工作内容"或"技能要求"（这些是其他功能负责的），请聚焦于以下维度：
-
-1. 市场趋势分析：
-   - 这类岗位在当前市场的需求热度（上升/稳定/下降）
-   - 薪资水平在行业中的位置（偏高/中等/偏低）
-   - 未来2-3年的发展趋势
-
-2. 行业对标：
-   - 列出2-3个相似岗位（不同公司/行业）
-   - 对比差异和优势
-
-3. 职业发展路径：
-   - 从这个岗位出发的3条可能发展路径
-   - 每条路径的下一步建议和时间线
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "整体市场洞察总结（2-3句话）",
+  "summary": "市场洞察总结（1句话）",
   "trend": {
     "marketHeat": "高需求/中等需求/需求下降",
-    "demandTrend": "需求趋势描述（1-2句话）",
-    "salaryPosition": "薪资在行业中偏高/中等/偏低",
-    "futureOutlook": "未来2-3年发展趋势（2-3句话）",
-    "insights": [
-      "趋势洞察1",
-      "趋势洞察2",
-      "趋势洞察3"
-    ]
+    "demandTrend": "趋势描述（1句话）",
+    "salaryPosition": "偏高/中等/偏低",
+    "futureOutlook": "未来趋势（1句话）",
+    "insights": ["洞察1", "洞察2"]
   },
   "benchmark": [
-    {
-      "role": "对标岗位名称",
-      "company": "典型公司类型",
-      "similarity": "相似度描述",
-      "differences": "主要差异",
-      "advantages": "该岗位相比对标岗位的优势"
-    }
+    {"role": "对标岗位", "company": "典型公司", "similarity": "相似度", "differences": "差异", "advantages": "优势"}
   ],
   "careerPaths": [
-    {
-      "direction": "发展方向名称",
-      "description": "路径描述（2-3句话）",
-      "nextStep": "下一步建议",
-      "timeline": "建议时间线"
-    }
+    {"direction": "方向", "description": "描述（1句话）", "nextStep": "下一步", "timeline": "时间线"}
   ]
 }
 
-以下是职位描述：
----
-${jd}
----`
+JD：
+---\n${jd}\n---`
 
   return await callAndParse(prompt, { validator: validateInsightResult })
 }
@@ -593,69 +579,38 @@ ${jd}
  * 与首页的区别：首页只是"列出技能"，这里是"技能全景地图"
  */
 export async function extractSkillMap(jd) {
-  const prompt = `你是一位技术招聘专家和技能评估师。请为以下JD构建一个完整的"技能全景地图"。
+  const prompt = `为JD构建技能全景地图。只返回JSON，每条1句话，每类最多5个技能。
 
-注意：不要简单列出技能（那是其他功能负责的），请从以下维度深度分析：
-
-1. 技能分类（技术技能/软技能/工具技能），每个技能给出：
-   - 匹配度（0-100，表示候选人需要掌握到什么程度）
-   - 简要说明
-
-2. 技能雷达图（6个核心维度，每个维度0-100分）：
-   - 前端开发、后端能力、工程化、架构设计、团队协作、业务理解
-   （根据实际岗位调整维度名称）
-
-3. 学习路径推荐：
-   - 如果候选人目前只满足60%的技能要求，推荐一个3个月的学习路径
-   - 每个技能推荐具体的学习资源
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "技能全景总结（2-3句话）",
+  "summary": "技能全景总结（1句话）",
   "radarDimensions": [
-    {"name": "维度名称", "score": 85}
+    {"name": "维度名", "score": 85}
   ],
   "categories": [
     {
       "name": "技术技能",
       "icon": "💻",
-      "skills": [
-        {
-          "name": "技能名称",
-          "match": 90,
-          "description": "简要说明",
-          "resource": "推荐学习资源（具体书名/课程/文档）"
-        }
-      ]
+      "skills": [{"name": "技能名", "match": 90, "description": "说明", "resource": "推荐资源"}]
     },
     {
       "name": "软技能",
       "icon": "🧠",
-      "skills": [
-        {"name": "技能名称", "match": 70, "description": "简要说明", "resource": "推荐资源"}
-      ]
+      "skills": [{"name": "技能名", "match": 70, "description": "说明", "resource": "推荐资源"}]
     },
     {
       "name": "工具技能",
       "icon": "🔧",
-      "skills": [
-        {"name": "技能名称", "match": 80, "description": "简要说明", "resource": "推荐资源"}
-      ]
+      "skills": [{"name": "技能名", "match": 80, "description": "说明", "resource": "推荐资源"}]
     }
   ],
   "learningPath": [
-    {
-      "phase": "第1个月：基础补强",
-      "skills": ["需要学习的技能1", "技能2"],
-      "resources": "推荐资源"
-    }
+    {"phase": "第1月：基础补强", "skills": ["技能1", "技能2"], "resources": "推荐资源"}
   ]
 }
 
-以下是职位描述：
----
-${jd}
----`
+JD：
+---\n${jd}\n---`
 
   return await callAndParse(prompt, { validator: validateSkillMapResult })
 }
@@ -668,44 +623,35 @@ ${jd}
  * （这个功能已经很独特，保持不变）
  */
 export async function breakdownRole(jd) {
-  const prompt = `你是一位组织行为学专家和资深技术管理者。请深度拆解以下JD所描述的岗位角色。
+  const prompt = `拆解JD岗位在组织中的角色。只返回JSON，每条1句话。
 
-分析维度：
-1. 角色定位：这个岗位在团队中的真实角色是什么
-2. 上下级关系：汇报给谁、管理谁、和谁平级协作
-3. 核心职责占比：每项核心职责占工作时间的百分比（总和100%）
-4. 协作对象：需要和哪些角色协作，协作频率如何
-5. 日常时间分配：一天8小时大致怎么分配
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "角色定位总结（2-3句话）",
+  "summary": "角色定位总结（1句话）",
   "rolePosition": {
     "title": "真实角色标题",
-    "description": "角色描述（2-3句话）",
-    "teamContext": "在团队中的上下文",
-    "keyTraits": ["关键特质1", "关键特质2", "关键特质3"]
+    "description": "描述（1句话）",
+    "teamContext": "团队上下文",
+    "keyTraits": ["特质1", "特质2"]
   },
   "hierarchy": {
-    "reportsTo": {"title": "汇报对象", "description": "汇报关系描述"},
+    "reportsTo": {"title": "汇报对象", "description": "描述"},
     "peers": [{"title": "平级角色", "description": "协作关系"}],
     "manages": {"title": "下属角色", "description": "管理关系"}
   },
   "responsibilities": [
-    {"name": "职责名称", "percentage": 30, "description": "具体描述"}
+    {"name": "职责名", "percentage": 30, "description": "描述"}
   ],
   "collaborators": [
-    {"role": "协作角色", "frequency": "频繁/定期/偶尔", "purpose": "协作目的"}
+    {"role": "协作角色", "frequency": "频繁/定期/偶尔", "purpose": "目的"}
   ],
   "timeAllocation": [
-    {"activity": "活动名称", "hours": 3, "percentage": 37.5, "description": "具体描述"}
+    {"activity": "活动", "hours": 3, "percentage": 37.5, "description": "描述"}
   ]
 }
 
-以下是职位描述：
----
-${jd}
----`
+JD：
+---\n${jd}\n---`
 
   return await callAndParse(prompt, { validator: validateRoleBreakdownResult })
 }
@@ -717,54 +663,32 @@ ${jd}
  * 视角：多维度量化对比 + 差异分析 + 最终推荐
  */
 export async function compareJDs(jd1, jd2, title1, title2) {
-  const prompt = `你是一位资深的职业顾问。请对比以下两个职位，帮求职者做出选择。
+  const t1 = truncateText(jd1, 2000)
+  const t2 = truncateText(jd2, 2000)
+  const prompt = `对比两个职位。只返回JSON，每条1句话。
 
 职位A：${title1 || '职位A'}
 职位B：${title2 || '职位B'}
 
-请从以下6个维度逐一对比：
-1. 薪资待遇（范围、涨幅空间、福利）
-2. 技能要求（难度、成长性）
-3. 工作强度（加班情况、压力水平）
-4. 发展空间（晋升路径、跳槽价值）
-5. 团队规模（团队大小、技术氛围）
-6. 技术栈（主流程度、前沿性）
-
-然后：
-- 给出整体相似度评分（0-100）
-- 列出3-5个最大差异
-- 给出明确推荐
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
   "similarityScore": 65,
   "comparison": [
-    {
-      "dimension": "薪资待遇",
-      "jd1": "职位A的薪资情况描述",
-      "jd2": "职位B的薪资情况描述",
-      "advantage": "A/B/持平"
-    }
+    {"dimension": "薪资待遇", "jd1": "A的情况", "jd2": "B的情况", "advantage": "A/B/持平"}
   ],
-  "differences": [
-    "差异1：具体描述",
-    "差异2：具体描述"
-  ],
+  "differences": ["差异1", "差异2"],
   "recommendation": {
-    "choice": "推荐选择A/B/各有优劣",
-    "reason": "推荐理由（2-3句话）",
-    "details": [
-      "推荐理由详细说明1",
-      "推荐理由详细说明2"
-    ]
+    "choice": "推荐A/B/各有优劣",
+    "reason": "理由（1句话）",
+    "details": ["理由1", "理由2"]
   }
 }
 
 --- 职位A ---
-${jd1}
+${t1}
 
 --- 职位B ---
-${jd2}
+${t2}
 ---`
 
   return await callAndParse(prompt, { validator: validateCompareResult })
@@ -777,65 +701,34 @@ ${jd2}
  * 视角：从候选人现有条件出发，量化匹配程度 + 找出差距 + 给出优化建议
  */
 export async function matchResume(jd, resume) {
-  const prompt = `你是一位资深的技术面试官和简历评估专家。请深度分析以下简历与目标岗位的匹配度。
+  const tResume = truncateText(resume, 2000)
+  const prompt = `分析简历与JD的匹配度。只返回JSON，每条1句话，每类最多3项。
 
-分析要求：
-1. 整体匹配度评分（0-100）
-2. 匹配的优势（候选人已有的、岗位需要的）
-3. 差距分析（岗位要求但候选人缺失或不足的）
-4. 简历优化建议（如何在简历中更好地展示匹配度）
-5. 面试准备重点（基于差距，面试中需要重点准备的方向）
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "整体匹配度总结（2-3句话）",
+  "summary": "匹配度总结（1句话）",
   "overallScore": 75,
-  "scoreBreakdown": {
-    "skillMatch": 80,
-    "experienceMatch": 70,
-    "educationMatch": 90,
-    "softSkillMatch": 75,
-    "cultureFit": 65
-  },
+  "scoreBreakdown": {"skillMatch": 80, "experienceMatch": 70, "educationMatch": 90, "softSkillMatch": 75, "cultureFit": 65},
   "matchedStrengths": [
-    {
-      "category": "技能/经验/学历/软技能",
-      "item": "具体匹配项",
-      "detail": "匹配说明（1-2句话）",
-      "confidence": "高/中/低"
-    }
+    {"category": "技能/经验/学历/软技能", "item": "匹配项", "detail": "说明", "confidence": "高/中/低"}
   ],
   "gaps": [
-    {
-      "category": "技能/经验/学历/软技能",
-      "item": "具体缺失项",
-      "severity": "关键缺失/重要缺失/轻微不足",
-      "suggestion": "如何弥补（具体可执行的建议）"
-    }
+    {"category": "技能/经验/学历/软技能", "item": "缺失项", "severity": "关键缺失/重要缺失/轻微不足", "suggestion": "如何弥补"}
   ],
   "resumeOptimization": [
-    {
-      "section": "简历板块（如：项目经验/技能描述/自我评价）",
-      "currentIssue": "当前问题",
-      "suggestedFix": "优化建议",
-      "example": "优化后的示例文本"
-    }
+    {"section": "简历板块", "currentIssue": "问题", "suggestedFix": "建议", "example": "优化示例"}
   ],
   "interviewFocus": [
-    {
-      "topic": "面试重点话题",
-      "reason": "为什么需要重点准备",
-      "preparation": "如何准备（具体方向）"
-    }
+    {"topic": "重点话题", "reason": "原因", "preparation": "如何准备"}
   ],
   "verdict": "强烈推荐投递/推荐投递/可以尝试/需要补强后再投/不太匹配"
 }
 
---- 目标岗位 JD ---
+--- 目标JD ---
 ${jd}
 
---- 候选人简历 ---
-${resume}`
+--- 简历 ---
+${tResume}`
 
   return await callAndParse(prompt, { maxTokens: 16384, validator: validateResumeMatchResult })
 }
@@ -847,49 +740,24 @@ ${resume}`
  * 视角：面试官会问什么 + 真实面经参考 + 答题思路
  */
 export async function generateInterviewQuestions(jd) {
-  const prompt = `你是一位经验丰富的技术面试官，同时也是一位面试辅导专家。请基于以下JD生成全面的面试准备方案。
+  const prompt = `基于JD生成面试准备方案。只返回JSON，每条1句话，问题最多5个。
 
-分析要求：
-1. 按类别生成面试问题（技术基础、项目经验、系统设计、行为面试、开放性问题）
-2. 每个问题给出难度、考察点、答题思路
-3. 生成3-5个用于搜索真实面经的关键词（用于在小红书、牛客、知乎等平台搜索）
-4. 推荐面试准备策略
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "面试准备总结（2-3句话）",
+  "summary": "面试准备总结（1句话）",
   "questions": [
-    {
-      "category": "技术基础/项目经验/系统设计/行为面试/开放性问题",
-      "question": "具体面试问题",
-      "difficulty": "简单/中等/困难",
-      "focus": "考察点（面试官想了解什么）",
-      "answerTips": "答题思路和关键点（3-5个要点）",
-      "commonMistakes": "常见错误/踩坑点",
-      "followUp": "可能的追问方向"
-    }
+    {"category": "技术基础/项目经验/系统设计/行为面试/开放性问题", "question": "问题", "difficulty": "简单/中等/困难", "focus": "考察点", "answerTips": "答题思路", "commonMistakes": "常见错误", "followUp": "追问方向"}
   ],
   "searchQueries": [
-    {
-      "keyword": "搜索关键词",
-      "platform": "推荐平台（小红书/牛客/知乎/力扣/V2EX）",
-      "reason": "为什么搜这个"
-    }
+    {"keyword": "搜索关键词", "platform": "推荐平台", "reason": "为什么搜"}
   ],
   "preparationStrategy": [
-    {
-      "phase": "准备阶段（如：面试前1周/前3天/前一天）",
-      "tasks": ["具体任务1", "具体任务2"],
-      "tips": "该阶段的关键建议"
-    }
+    {"phase": "准备阶段", "tasks": ["任务1", "任务2"], "tips": "建议"}
   ],
-  "redFlags": [
-    "面试中需要注意避免的雷区1",
-    "面试中需要注意避免的雷区2"
-  ]
+  "redFlags": ["雷区1", "雷区2"]
 }
 
---- 目标岗位 JD ---
+--- JD ---
 ${jd}`
 
   return await callAndParse(prompt, { maxTokens: 16384, validator: validateInterviewPrepResult })
@@ -900,66 +768,41 @@ ${jd}`
 // ==================== 7. AI模拟面试 ====================
 
 export async function generateMockInterview(jd) {
-  const prompt = `你是一位资深技术面试官。请基于以下JD，生成一场模拟面试的问题列表。
+  const prompt = `基于JD生成模拟面试问题。只返回JSON，每条1句话，5个问题。
 
-要求：
-1. 生成5个面试问题，覆盖不同考察维度
-2. 每个问题包含：题目、考察维度、难度、参考答案要点、评分标准
-3. 问题要有层次：从基础到深入，从技术到软技能
-4. 每个问题附带一个"面试官追问"（如果候选人回答不够深入时的追问）
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "这场面试的整体定位和考察重点（2-3句话）",
+  "summary": "面试定位（1句话）",
   "questions": [
-    {
-      "id": 1,
-      "question": "面试问题",
-      "category": "技术基础/项目经验/系统设计/行为面试/情景题",
-      "difficulty": "简单/中等/困难",
-      "expectedPoints": ["参考答案要点1", "要点2", "要点3"],
-      "scoringGuide": "评分标准说明（1-2句话）",
-      "followUp": "如果回答不够深入时的追问"
-    }
+    {"id": 1, "question": "问题", "category": "技术基础/项目经验/系统设计/行为面试/情景题", "difficulty": "简单/中等/困难", "expectedPoints": ["要点1", "要点2"], "scoringGuide": "评分标准", "followUp": "追问"}
   ]
 }
 
-以下是职位描述：
----
-${jd}
----`
+JD：
+---\n${jd}\n---`
 
   return await callAndParse(prompt, { validator: validateMockInterviewResult })
 }
 
 export async function evaluateInterviewAnswer(question, answer, jdContext) {
-  const prompt = `你是一位资深技术面试官。请评估候选人对以下面试问题的回答。
+  const tCtx = truncateText(jdContext, 2000)
+  const prompt = `评估面试回答。只返回JSON，每条1句话。
 
-评估要求：
-1. 给出0-100分的评分
-2. 分析回答的优点和不足
-3. 给出具体的改进建议
-4. 如果回答不完整，补充参考答案
+JD背景：
+---\n${tCtx}\n---
 
-面试背景（JD）：
----
-${jdContext}
----
+问题：${question}
 
-面试问题：
-${question}
+回答：${answer}
 
-候选人回答：
-${answer}
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
   "score": 75,
   "strengths": ["优点1", "优点2"],
   "weaknesses": ["不足1", "不足2"],
-  "feedback": "综合评价（2-3句话）",
-  "improvement": ["改进建议1", "改进建议2"],
-  "referenceAnswer": "参考答案（如果候选人回答不完整则补充）"
+  "feedback": "综合评价（1句话）",
+  "improvement": ["建议1", "建议2"],
+  "referenceAnswer": "参考答案"
 }`
 
   return await callAndParse(prompt, { maxTokens: 4096, validator: validateEvaluateAnswerResult })
@@ -968,51 +811,28 @@ ${answer}
 // ==================== 8. 技能差距热力图 ====================
 
 export async function analyzeSkillGap(jd, mySkills) {
-  const prompt = `你是一位技能评估专家。请对比以下JD要求和候选人的技能栈，分析差距。
+  const tSkills = truncateText(mySkills, 2000)
+  const prompt = `对比JD要求和候选人技能，分析差距。只返回JSON，每条1句话，技能最多8个。
 
-分析要求：
-1. 将JD要求的技能和候选人技能逐一对比
-2. 每个技能给出匹配度（0-100）
-3. 识别关键差距（匹配度低于50的技能）
-4. 给出整体匹配度评分
-5. 推荐弥补差距的学习路径
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "整体技能匹配总结（2-3句话）",
+  "summary": "技能匹配总结（1句话）",
   "overallMatch": 65,
   "skills": [
-    {
-      "name": "技能名称",
-      "required": 85,
-      "current": 60,
-      "gap": 25,
-      "category": "前端/后端/数据库/DevOps/软技能/工具",
-      "importance": "关键/重要/加分项",
-      "suggestion": "如何提升（具体建议）"
-    }
+    {"name": "技能名", "required": 85, "current": 60, "gap": 25, "category": "前端/后端/数据库/DevOps/软技能/工具", "importance": "关键/重要/加分项", "suggestion": "如何提升"}
   ],
-  "criticalGaps": ["最需要补的关键技能1", "技能2"],
-  "strengths": ["候选人明显优势的技能1", "技能2"],
+  "criticalGaps": ["关键差距1", "差距2"],
+  "strengths": ["优势1", "优势2"],
   "learningPlan": [
-    {
-      "priority": 1,
-      "skill": "技能名称",
-      "timeline": "建议学习时间",
-      "resources": "推荐学习资源"
-    }
+    {"priority": 1, "skill": "技能名", "timeline": "学习时间", "resources": "推荐资源"}
   ]
 }
 
-以下是职位描述：
----
-${jd}
----
+JD：
+---\n${jd}\n---
 
-以下是候选人的技能栈：
----
-${mySkills}
----`
+技能栈：
+---\n${tSkills}\n---`
 
   return await callAndParse(prompt, { validator: validateSkillGapResult })
 }
@@ -1020,50 +840,22 @@ ${mySkills}
 // ==================== 9. 薪资可信度检测 ====================
 
 export async function checkSalaryCredibility(jd) {
-  const prompt = `你是一位薪资分析专家。请分析以下JD中的薪资信息是否可信。
+  const prompt = `分析JD薪资信息是否可信。只返回JSON，每条1句话。注意：数据非实时，仅供参考。
 
-注意：你的市场数据来自训练知识库，非实时市场数据，仅供参考。对于互联网/IT行业一线城市数据较准，对于传统行业或二线城市可能偏差较大。
-
-分析要求：
-1. 提取JD中的薪资范围（如果有）
-2. 判断薪资在当前市场是否合理
-3. 给出"水分指数"（0-100，越高越不可信）
-4. 分析可能存在的薪资陷阱（如：包含绩效/年终、税前税后差异等）
-5. 给出谈判建议
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "薪资可信度总结（2-3句话）",
-  "extractedSalary": {
-    "min": 15000,
-    "max": 25000,
-    "period": "月薪",
-    "months": 14,
-    "raw": "JD中薪资原文"
-  },
+  "summary": "薪资可信度总结（1句话）",
+  "extractedSalary": {"min": 15000, "max": 25000, "period": "月薪", "months": 14, "raw": "原文"},
   "credibilityScore": 75,
   "waterIndex": 25,
-  "marketComparison": {
-    "marketAvg": 20000,
-    "marketRange": "15000-28000",
-    "position": "偏低/合理/偏高",
-    "analysis": "市场对比分析（2-3句话）"
-  },
-  "risks": [
-    {
-      "type": "薪资陷阱类型",
-      "description": "具体描述",
-      "severity": "高/中/低"
-    }
-  ],
-  "negotiationTips": ["谈判建议1", "建议2", "建议3"],
+  "marketComparison": {"marketAvg": 20000, "marketRange": "15000-28000", "position": "偏低/合理/偏高", "analysis": "分析（1句话）"},
+  "risks": [{"type": "陷阱类型", "description": "描述", "severity": "高/中/低"}],
+  "negotiationTips": ["建议1", "建议2"],
   "verdict": "可信/基本可信/需谨慎/不可信"
 }
 
-以下是职位描述：
----
-${jd}
----`
+JD：
+---\n${jd}\n---`
 
   return await callAndParse(prompt, { validator: validateSalaryCredibilityResult })
 }
@@ -1073,57 +865,30 @@ export { callAndParse }
 // ==================== 10. 简历定制优化 ====================
 
 export async function generateResumeTailor(jd, resume, companyInfo) {
-  const prompt = `你是一位资深简历优化师和招聘专家。请根据以下JD、候选人原始简历和公司信息，教候选人如何定制简历。
+  const tResume = truncateText(resume, 2000)
+  const tCompany = truncateText(companyInfo, 1000)
+  const prompt = `根据JD定制简历。只返回JSON，每条1句话，sections最多4项。
 
-分析要求：
-1. 逐段分析简历中需要修改的地方，给出具体改写建议
-2. 针对JD中的关键词，教候选人如何在简历中自然融入
-3. 根据公司/团队特性，调整简历的侧重点和语气
-4. 给出每个板块（个人总结、工作经历、项目经验、技能描述）的优化版本
-5. 标注哪些经历应该突出、哪些可以弱化
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
-  "summary": "整体优化方向总结（2-3句话）",
-  "keywordStrategy": {
-    "jdKeywords": ["JD关键词1", "关键词2", "关键词3"],
-    "howToEmbed": "如何在简历中自然融入这些关键词（2-3句话）"
-  },
+  "summary": "优化方向（1句话）",
+  "keywordStrategy": {"jdKeywords": ["关键词1", "关键词2"], "howToEmbed": "如何融入（1句话）"},
   "sections": [
-    {
-      "section": "个人总结/工作经历/项目经验/技能描述/教育背景",
-      "original": "原始内容摘要",
-      "issue": "存在的问题",
-      "optimized": "优化后的版本（直接可用的文案）",
-      "reason": "为什么这样改（1-2句话）"
-    }
+    {"section": "板块名", "original": "原文摘要", "issue": "问题", "optimized": "优化版", "reason": "原因"}
   ],
-  "highlightStrategy": {
-    "emphasize": ["应该突出的经历1", "经历2"],
-    "downplay": ["可以弱化的内容1"]
-  },
-  "tailoringTips": [
-    "针对这家公司的定制建议1",
-    "建议2",
-    "建议3"
-  ],
-  "finalResume": "整合后的完整简历文案（可直接使用）"
+  "highlightStrategy": {"emphasize": ["突出1", "突出2"], "downplay": ["弱化1"]},
+  "tailoringTips": ["建议1", "建议2"],
+  "finalResume": "整合后的完整简历"
 }
 
-以下是职位描述：
----
-${jd}
----
+JD：
+---\n${jd}\n---
 
-以下是候选人原始简历/经历：
----
-${resume}
----
+简历：
+---\n${tResume}\n---
 
-以下是公司/团队信息：
----
-${companyInfo || '未提供公司信息，请根据JD推断'}
----`
+公司信息：
+---\n${tCompany || '未提供，请根据JD推断'}\n---`
 
   return await callAndParse(prompt, { validator: validateResumeTailorResult })
 }
@@ -1131,58 +896,27 @@ ${companyInfo || '未提供公司信息，请根据JD推断'}
 // ==================== 11. 公司调研 ====================
 
 export async function researchCompany(companyName, jd) {
-  const prompt = `你是一位企业调研分析师。请根据公司名称和JD信息，基于你的知识库深度调研这家公司。
+  const prompt = `调研公司信息。只返回JSON，每条1句话。注意：基于训练数据，非实时，信息不足请标注。
 
-注意：你的分析基于训练数据中的公开信息，不包含实时联网数据。对于知名公司信息较准，对于小型/初创公司可能信息有限。如信息不足，请如实标注"信息不足"而非编造。
-
-调研要求：
-1. 识别公司全称、所属行业、规模阶段（创业/成长/成熟/上市）
-2. 根据JD推断团队情况：技术栈、团队规模、工作氛围
-3. 分析公司口碑和风评（基于公开信息）：
-   - 员工评价（加班情况、管理风格、福利待遇）
-   - 面试者反馈（面试难度、流程、体验）
-   - 行业声誉（技术实力、市场地位、发展前景）
-4. 给出风险提示（如有裁员、资金问题、负面新闻等）
-5. 总结：这家公司值不值得去
-
-请以如下 JSON 格式返回：
+JSON格式：
 {
   "companyName": "公司全称",
-  "industry": "所属行业",
+  "industry": "行业",
   "stage": "创业期/成长期/成熟期/上市企业",
-  "scale": "公司规模描述",
-  "teamInference": {
-    "techStack": "推断的技术栈",
-    "teamSize": "推断的团队规模",
-    "culture": "推断的团队文化和工作氛围",
-    "workStyle": "工作方式（如：敏捷开发、远程办公等）"
-  },
-  "reputation": {
-    "employeeReview": "员工评价总结（2-3句话）",
-    "interviewFeedback": "面试者反馈总结（2-3句话）",
-    "industryReputation": "行业声誉（2-3句话）",
-    "pros": ["优点1", "优点2", "优点3"],
-    "cons": ["缺点1", "缺点2"]
-  },
-  "risks": [
-    {
-      "type": "风险类型",
-      "description": "具体描述",
-      "severity": "高/中/低"
-    }
-  ],
-  "salaryReference": "该公司该岗位的薪资参考范围",
+  "scale": "规模",
+  "teamInference": {"techStack": "技术栈", "teamSize": "团队规模", "culture": "文化", "workStyle": "工作方式"},
+  "reputation": {"employeeReview": "员工评价（1句话）", "interviewFeedback": "面试反馈（1句话）", "industryReputation": "行业声誉（1句话）", "pros": ["优点1", "优点2"], "cons": ["缺点1"]},
+  "risks": [{"type": "风险类型", "description": "描述", "severity": "高/中/低"}],
+  "salaryReference": "薪资参考范围",
   "verdict": "值得去/可以考虑/需谨慎/不建议",
-  "verdictReason": "判断理由（2-3句话）",
-  "summary": "调研总结，可直接作为公司信息填入简历定制（2-3句话）"
+  "verdictReason": "理由（1句话）",
+  "summary": "调研总结（1句话）"
 }
 
-公司名称：${companyName}
+公司：${companyName}
 
-JD信息：
----
-${jd || '未提供JD'}
----`
+JD：
+---\n${jd || '未提供JD'}\n---`
 
   return await callAndParse(prompt, { validator: validateCompanyResearchResult })
 }

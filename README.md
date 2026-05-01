@@ -1,121 +1,151 @@
-# 拿个offer
+# 拿个offer - JD 深度分析工具
 
-> 从 JD 看清真实工作 — AI 驱动的职位描述深度分析工具
+AI 驱动的职位描述（JD）深度分析工具，帮助求职者看清 JD 背后的真实工作内容、隐藏要求和发展前景。
 
-## ✨ 功能特性
+支持接入 **DeepSeek**、**OpenAI**、**硅基流动** 等兼容 OpenAI 协议的模型。
 
-### 🔍 核心 AI 分析（11 个独立维度）
-
-| 功能 | 视角 | 说明 |
-|------|------|------|
-| **分析 JD** | 求职者利益 | 快速判断岗位值不值得投：真实日常、隐藏要求、风险信号、薪资分析 |
-| **简历匹配** ⭐P0 | 候选人匹配 | 量化简历与岗位匹配度（0-100），5维评分 + 差距分析 + 简历优化建议 |
-| **面试准备** ⭐P1 | 面试备战 | AI 生成针对性面试题 + 一键搜索小红书/牛客/知乎真实面经 |
-| **洞察报告** | 宏观市场 | 行业趋势、市场供需、对标岗位、职业发展路径 |
-| **技能提取** | 技能全景 | 技能雷达图、分类匹配度、3个月学习路径推荐 |
-| **角色拆解** | 组织行为 | 团队定位、上下级关系、职责占比、协作关系、时间分配 |
-| **对比分析** | 决策辅助 | 多维度量化对比两个岗位，辅助 Offer 选择 |
-
-### 🆕 新增功能（2024年12月）
-
-| 功能 | 解决痛点 | 特色 |
-|------|----------|------|
-| **AI模拟面试** | 面试紧张没经验 | 基于JD生成5个问题，AI实时点评打分，带追问和参考答案 |
-| **技能差距热力图** | 不知道差在哪 | 可视化对比JD要求vs你的技能，红黄绿三色热力图一目了然 |
-| **薪资可信度检测** | 怕被薪资忽悠 | 分析JD薪资水分指数，识别薪资陷阱，给出谈判建议 |
-| **简历定制优化** | 简历千篇一律 | AI根据JD和公司特性逐段教你改写，关键词策略+突出弱化建议 |
-| **AI公司调研** | 不了解公司情况 | 输入公司名自动调研团队、风评、风险，推荐豆包大模型更准 |
-
-### 🔧 其他功能
-
-- **收藏记录** — 收藏重要分析结果
-- **历史记录** — 自动保存所有分析历史
-- **JD 链接爬取** — 粘贴招聘链接自动提取 JD 内容（支持字节跳动等主流招聘平台）
-- **设置** — 配置 OpenAI 兼容 API（支持 OpenAI / DeepSeek / 通义千问 / Moonshot 等）
-
-## 🛠️ 技术栈
-
-- **React 18** + **Vite 5** + **TailwindCSS 3**
-- OpenAI 兼容协议 API 调用
-- localStorage 本地持久化
-- Jina Reader API 服务端渲染爬取 JD
-
-## 🚀 快速开始
-
-### 环境要求
-
-- Node.js >= 16
-- npm >= 7
-
-### 安装与运行
-
-```bash
-# 克隆项目
-git clone https://github.com/Baijidot/Find-a-job.git
-cd Find-a-job
-
-# 安装依赖
-npm install
-
-# 启动开发服务器
-npm run dev
-
-# 构建生产版本
-npm run build
-```
-
-### API 配置
-
-1. 点击右上角设置图标
-2. 输入你的 OpenAI 兼容 API Key（支持 DeepSeek、通义千问等）
-3. 配置 API Base URL（如使用第三方服务）
-4. 选择模型（推荐 gpt-4o-mini）
-
-## 📸 功能演示
-
-项目提供完整的功能演示，包括：
-- **首页 - JD 快速扫描**：实时分析JD真实情况
-- **简历定制优化**：AI逐段分析简历问题
-- **技能差距热力图**：可视化对比JD要求vs你的技能
-- **AI模拟面试**：基于JD生成问题并实时点评
-
-所有功能均可通过本地部署体验。
-
-## 🎯 使用场景
-
-### 应届生求职
-- **筛选岗位**：快速判断哪些岗位值得投，避免无效投递
-- **简历优化**：针对不同公司定制简历，提高通过率
-- **面试准备**：AI生成针对性问题，提前演练
-
-### 转行求职
-- **技能评估**：明确与目标岗位的技能差距
-- **学习规划**：AI推荐3个月学习路径
-- **薪资参考**：了解市场行情，合理谈判
-
-### 职场进阶
-- **岗位对比**：多个Offer选择时，量化分析利弊
-- **行业洞察**：了解岗位发展前景和晋升路径
-
-## 🔒 隐私保护
-
-- **数据本地存储**：所有分析记录保存在本地浏览器
-- **无数据上传**：JD和简历内容不会上传到任何服务器
-- **API调用安全**：API Key仅用于AI分析，不存储到服务器
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 📄 开源协议
-
-本项目采用 MIT 协议开源。
-
-## 📞 联系
-
-- GitHub: [Baijidot](https://github.com/Baijidot)
-- 项目地址: [Find-a-job](https://github.com/Baijidot/Find-a-job)
+[在线访问](https://baijidot.github.io/Find-a-job) · [报告问题](https://github.com/Baijidot/Find-a-job/issues)
 
 ---
 
-> 让求职更简单，让选择更明智
+## 功能一览
+
+### 首页分析（快速扫描）
+
+| 功能 | 说明 |
+|------|------|
+| **真实日常工作** | JD 写的"参与重要项目"实际在干什么？AI 帮你还原 |
+| **隐藏要求** | JD 没写但面试会问的：抗压能力、资源协调、应急处理… |
+| **风险预警** | 加班文化、薪资虚高、团队不稳定等信号 |
+| **投递建议** | 推荐 / 谨慎考虑 / 不建议，给出决策依据 |
+| **薪资分析** | 估算真实薪资范围，识别绩效/期权猫腻 |
+| **行动计划** | 投递前 → 面试前 → 入职前的具体准备方案 |
+
+### 专项深度分析
+
+- **技能全景地图** - 技术栈、软技能、工具技能分类提取，附学习路径
+- **角色拆解** - 在团队中的定位、汇报线、时间分配
+- **洞察报告** - 市场趋势、行业对标、职业发展路径
+- **对比分析** - 两个 Offer 同时对比，多维度量化打分
+
+### 简历与面试
+
+- **简历匹配度** - 量化 JD 与简历的匹配程度，给出优化建议
+- **技能差距热力图** - 明确当前技能与岗位要求的差距
+- **面试问题生成** - 基于 JD 生成个性化面试题，附答题思路
+- **AI 模拟面试** - 模拟真实面试，评分 + 改进建议
+- **简历定制** - 针对目标公司定制简历，突出匹配项
+
+### 辅助功能
+
+- **薪资可信度检测** - 市场对比、水分指数、谈判建议
+- **公司调研** - 基于公开信息分析公司口碑与风险
+- **收藏与历史** - 分析记录本地保存，随时回顾
+
+---
+
+## 技术栈
+
+- **前端框架**: React 18 + Vite 5
+- **样式**: Tailwind CSS
+- **AI**: OpenAI 协议（支持 DeepSeek / OpenAI / 硅基流动等）
+- **存储**: LocalStorage
+- **协议**: MIT 开源
+
+---
+
+## 快速上手
+
+### 方式一：直接访问（推荐）
+
+访问 [在线版本](https://baijidot.github.io/Find-a-job)，无需任何配置。
+
+### 方式二：本地运行
+
+```bash
+git clone https://github.com/Baijidot/Find-a-job.git
+cd Find-a-job/jd-reality-analyzer
+npm install
+npm run dev
+```
+
+然后打开 `http://localhost:5173`。
+
+---
+
+## 配置 API Key
+
+1. 点击左侧边栏底部的 **设置**（齿轮图标）
+2. 填写你的 API Key、模型地址和模型名称
+3. 点击 **保存并测试** 验证连接
+
+支持的模型配置示例：
+
+| 模型 | Base URL | 模型名称 |
+|------|----------|----------|
+| DeepSeek V4 | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| DeepSeek V4-flash | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| 硅基流动 (免费额度) | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-72B-Instruct` |
+| OpenAI GPT-4o | `https://api.openai.com/v1` | `gpt-4o` |
+
+> **隐私提示**: 你的 API Key 仅存储在浏览器本地（LocalStorage），不会上传到任何服务器。
+
+---
+
+## 项目结构
+
+```
+jd-reality-analyzer/
+├── src/
+│   ├── components/          # React 组件
+│   │   ├── pages/            # 各功能页面
+│   │   │   ├── CompareAnalysis.jsx      # 对比分析
+│   │   │   ├── Favorites.jsx           # 收藏
+│   │   │   ├── History.jsx             # 历史记录
+│   │   │   ├── InsightReport.jsx       # 洞察报告
+│   │   │   ├── InterviewPrep.jsx        # 面试准备
+│   │   │   ├── MockInterview.jsx       # 模拟面试
+│   │   │   ├── ResumeMatch.jsx          # 简历匹配
+│   │   │   ├── ResumeTailor.jsx         # 简历定制
+│   │   │   ├── RoleBreakdown.jsx       # 角色拆解
+│   │   │   ├── SalaryCheck.jsx          # 薪资检测
+│   │   │   ├── SkillExtract.jsx        # 技能提取
+│   │   │   └── SkillGap.jsx            # 技能差距
+│   │   ├── AnalysisRecordContent.jsx
+│   │   ├── FeatureGrid.jsx
+│   │   ├── HeroSection.jsx
+│   │   ├── InputSection.jsx
+│   │   ├── JdUrlInput.jsx
+│   │   ├── JobRealityCard.jsx
+│   │   ├── LoadingOverlay.jsx
+│   │   ├── PlanCard.jsx
+│   │   ├── ReportExportMenu.jsx
+│   │   ├── ResultPanel.jsx
+│   │   ├── SettingsModal.jsx
+│   │   ├── Sidebar.jsx
+│   │   └── SkillsCard.jsx
+│   ├── hooks/
+│   │   └── useAnalysisTask.js           # 分析任务状态管理
+│   ├── utils/
+│   │   ├── ai.js                         # AI 调用与 JSON 解析
+│   │   ├── analysisPipeline.js          # 分析流程编排
+│   │   ├── analysisSchemas.js          # JSON Schema 验证
+│   │   ├── jdFetcher.js                 # JD 内容抓取
+│   │   ├── reportExport.js              # 报告导出
+│   │   ├── resultModel.js               # 结果数据结构
+│   │   └── storage.js                   # 本地存储
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+├── index.html
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+└── postcss.config.js
+```
+
+---
+
+## License
+
+MIT © [白芨](https://github.com/Baijidot)
