@@ -63,6 +63,9 @@ export default function ResumeTailor() {
     setResult(null)
     setError(null)
     setActiveTab('sections')
+    setResearchResult(null)
+    setResearchError(null)
+    setCompanyName('')
   }, [])
 
   const handleCopyFinal = useCallback(() => {
