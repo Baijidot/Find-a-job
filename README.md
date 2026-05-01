@@ -2,9 +2,11 @@
 
 > 从 JD 看清真实工作 — AI 驱动的职位描述深度分析工具
 
+![拿个offer界面](https://via.placeholder.com/800x400/6366f1/ffffff?text=拿个offer+AI求职助手)
+
 ## ✨ 功能特性
 
-### 🔍 核心 AI 分析（8 个独立维度）
+### 🔍 核心 AI 分析（11 个独立维度）
 
 | 功能 | 视角 | 说明 |
 |------|------|------|
@@ -15,6 +17,16 @@
 | **技能提取** | 技能全景 | 技能雷达图、分类匹配度、3个月学习路径推荐 |
 | **角色拆解** | 组织行为 | 团队定位、上下级关系、职责占比、协作关系、时间分配 |
 | **对比分析** | 决策辅助 | 多维度量化对比两个岗位，辅助 Offer 选择 |
+
+### 🆕 新增功能（2024年12月）
+
+| 功能 | 解决痛点 | 特色 |
+|------|----------|------|
+| **AI模拟面试** | 面试紧张没经验 | 基于JD生成5个问题，AI实时点评打分，带追问和参考答案 |
+| **技能差距热力图** | 不知道差在哪 | 可视化对比JD要求vs你的技能，红黄绿三色热力图一目了然 |
+| **薪资可信度检测** | 怕被薪资忽悠 | 分析JD薪资水分指数，识别薪资陷阱，给出谈判建议 |
+| **简历定制优化** | 简历千篇一律 | AI根据JD和公司特性逐段教你改写，关键词策略+突出弱化建议 |
+| **AI公司调研** | 不了解公司情况 | 输入公司名自动调研团队、风评、风险，推荐豆包大模型更准 |
 
 ### 🔧 其他功能
 
@@ -41,8 +53,8 @@
 
 ```bash
 # 克隆项目
-git clone <repo-url>
-cd 拿个offer
+git clone https://github.com/Baijidot/Find-a-job.git
+cd Find-a-job
 
 # 安装依赖
 npm install
@@ -52,66 +64,64 @@ npm run dev
 
 # 构建生产版本
 npm run build
-
-# 预览生产版本
-npm run preview
 ```
 
-### 配置 API Key
+### API 配置
 
-1. 启动项目后，点击左侧边栏「设置」
-2. 填入你的 OpenAI 兼容 API Key
-3. 选择或填写 Base URL（默认 `https://api.openai.com/v1`）
-4. 选择模型（默认 `gpt-4o-mini`）
-5. 点击「测试连接」验证配置
+1. 点击右上角设置图标
+2. 输入你的 OpenAI 兼容 API Key（支持 DeepSeek、通义千问等）
+3. 配置 API Base URL（如使用第三方服务）
+4. 选择模型（推荐 gpt-4o-mini）
 
-> 支持任何 OpenAI 兼容协议的 API 服务（OpenAI、DeepSeek、通义千问、Moonshot 等）
+## 📸 功能截图
 
-## 📁 项目结构
+### 首页 - JD 快速扫描
+![首页截图](https://via.placeholder.com/600x400/6366f1/ffffff?text=首页+JD快速扫描)
 
-```
-拿个offer/
-├── index.html
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-├── postcss.config.js
-└── src/
-    ├── main.jsx                    # 入口
-    ├── App.jsx                     # 主应用（路由）
-    ├── index.css                   # 全局样式
-    ├── components/
-    │   ├── Sidebar.jsx             # 侧边栏导航
-    │   ├── HeroSection.jsx         # 首页标题
-    │   ├── InputSection.jsx        # JD 输入区
-    │   ├── JdUrlInput.jsx          # JD 链接爬取
-    │   ├── ResultPanel.jsx         # 分析结果容器
-    │   ├── JobRealityCard.jsx      # JD 真相卡片
-    │   ├── SkillsCard.jsx          # 技能卡片
-    │   ├── PlanCard.jsx            # 行动计划卡片
-    │   ├── LoadingOverlay.jsx      # 加载动画
-    │   ├── SettingsModal.jsx       # 设置弹窗
-    │   └── pages/
-    │       ├── InsightReport.jsx   # 洞察报告
-    │       ├── SkillExtract.jsx    # 技能提取
-    │       ├── RoleBreakdown.jsx   # 角色拆解
-    │       ├── CompareAnalysis.jsx # 对比分析
-    │       ├── ResumeMatch.jsx     # 简历匹配
-    │       ├── InterviewPrep.jsx   # 面试准备
-    │       ├── Favorites.jsx       # 收藏记录
-    │       ├── History.jsx         # 历史记录
-    │       └── HelpFeedback.jsx    # 帮助与反馈
-    └── utils/
-        ├── ai.js                   # AI 调用（9 个独立分析函数）
-        ├── jdFetcher.js            # JD 爬取（多策略）
-        └── storage.js              # 本地存储
-```
+### 简历定制优化
+![简历定制](https://via.placeholder.com/600x400/10b981/ffffff?text=简历定制+AI逐段优化)
 
-## 👨‍💻 作者
+### 技能差距热力图
+![技能热力图](https://via.placeholder.com/600x400/f59e0b/ffffff?text=技能差距+可视化分析)
 
-**白芨**
-- GitHub: [@Baijidot](https://github.com/Baijidot)
+### AI模拟面试
+![模拟面试](https://via.placeholder.com/600x400/ec4899/ffffff?text=AI模拟面试+实时点评)
 
-## 📄 License
+## 🎯 使用场景
 
-MIT
+### 应届生求职
+- **筛选岗位**：快速判断哪些岗位值得投，避免无效投递
+- **简历优化**：针对不同公司定制简历，提高通过率
+- **面试准备**：AI生成针对性问题，提前演练
+
+### 转行求职
+- **技能评估**：明确与目标岗位的技能差距
+- **学习规划**：AI推荐3个月学习路径
+- **薪资参考**：了解市场行情，合理谈判
+
+### 职场进阶
+- **岗位对比**：多个Offer选择时，量化分析利弊
+- **行业洞察**：了解岗位发展前景和晋升路径
+
+## 🔒 隐私保护
+
+- **数据本地存储**：所有分析记录保存在本地浏览器
+- **无数据上传**：JD和简历内容不会上传到任何服务器
+- **API调用安全**：API Key仅用于AI分析，不存储到服务器
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📄 开源协议
+
+本项目采用 MIT 协议开源。
+
+## 📞 联系
+
+- GitHub: [Baijidot](https://github.com/Baijidot)
+- 项目地址: [Find-a-job](https://github.com/Baijidot/Find-a-job)
+
+---
+
+> 让求职更简单，让选择更明智
