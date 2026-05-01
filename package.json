@@ -3,11 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "description": "AI驱动的JD深度分析工具，帮助求职者看清职位描述背后的真实工作内容与要求",
+  "keywords": ["求职", "JD分析", "职位分析", "AI", "React", "Vite", "TailwindCSS"],
+  "license": "MIT",
   "author": "白芨 <https://github.com/Baijidot>",
-  "homepage": "https://github.com/Baijidot",
+  "homepage": "https://github.com/Baijidot/Find-a-job",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Baijidot/拿个offer.git"
+    "url": "https://github.com/Baijidot/Find-a-job.git"
   },
   "scripts": {
     "dev": "vite",
