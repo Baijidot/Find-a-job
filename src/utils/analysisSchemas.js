@@ -463,3 +463,38 @@ export function validateResumeTailorResult(value) {
     finalResume: asString(data.finalResume, 'finalResume'),
   }
 }
+
+export function validateCompanyResearchResult(value) {
+  const data = asObject(value, 'companyResearch')
+  return {
+    companyName: asString(data.companyName, 'companyName'),
+    industry: asString(data.industry, 'industry', { optional: true }),
+    stage: asString(data.stage, 'stage', { optional: true }),
+    scale: asString(data.scale, 'scale', { optional: true }),
+    teamInference: data.teamInference ? {
+      techStack: asString(data.teamInference.techStack, 'teamInference.techStack', { optional: true }),
+      teamSize: asString(data.teamInference.teamSize, 'teamInference.teamSize', { optional: true }),
+      culture: asString(data.teamInference.culture, 'teamInference.culture', { optional: true }),
+      workStyle: asString(data.teamInference.workStyle, 'teamInference.workStyle', { optional: true }),
+    } : null,
+    reputation: data.reputation ? {
+      employeeReview: asString(data.reputation.employeeReview, 'reputation.employeeReview', { optional: true }),
+      interviewFeedback: asString(data.reputation.interviewFeedback, 'reputation.interviewFeedback', { optional: true }),
+      industryReputation: asString(data.reputation.industryReputation, 'reputation.industryReputation', { optional: true }),
+      pros: stringList(data.reputation.pros, 'reputation.pros'),
+      cons: stringList(data.reputation.cons, 'reputation.cons'),
+    } : null,
+    risks: asArray(data.risks, 'risks', (item, field) => {
+      const entry = asObject(item, field)
+      return {
+        type: asString(entry.type, `${field}.type`),
+        description: asString(entry.description, `${field}.description`),
+        severity: asString(entry.severity, `${field}.severity`),
+      }
+    }, { optional: true }),
+    salaryReference: asString(data.salaryReference, 'salaryReference', { optional: true }),
+    verdict: asString(data.verdict, 'verdict'),
+    verdictReason: asString(data.verdictReason, 'verdictReason', { optional: true }),
+    summary: asString(data.summary, 'summary'),
+  }
+}

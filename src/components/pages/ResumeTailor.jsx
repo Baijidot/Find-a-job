@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { generateResumeTailor } from '../../utils/ai'
+import { generateResumeTailor, researchCompany } from '../../utils/ai'
 
 const SAMPLE_RESUME = `个人总结：
 3年前端开发经验，熟悉React和Vue，参与过多个项目开发，有良好的团队协作能力。
@@ -40,6 +40,10 @@ export default function ResumeTailor() {
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
   const [activeTab, setActiveTab] = useState('sections')
+  const [companyName, setCompanyName] = useState('')
+  const [researching, setResearching] = useState(false)
+  const [researchResult, setResearchResult] = useState(null)
+  const [researchError, setResearchError] = useState(null)
 
   const handleAnalyze = useCallback(async () => {
     if (!jdText.trim() || !resumeText.trim()) return
@@ -66,6 +70,50 @@ export default function ResumeTailor() {
       navigator.clipboard.writeText(result.finalResume).catch(() => {})
     }
   }, [result])
+
+  const handleResearch = useCallback(async () => {
+    if (!companyName.trim()) return
+    setResearching(true)
+    setResearchError(null)
+    setResearchResult(null)
+    try {
+      const data = await researchCompany(companyName, jdText)
+      setResearchResult(data)
+    } catch (e) {
+      setResearchError(e.message)
+    } finally {
+      setResearching(false)
+    }
+  }, [companyName, jdText])
+
+  const handleFillResearch = useCallback(() => {
+    if (!researchResult) return
+    const info = [
+      `公司：${researchResult.companyName}`,
+      researchResult.industry ? `行业：${researchResult.industry}` : '',
+      researchResult.stage ? `阶段：${researchResult.stage}` : '',
+      researchResult.scale ? `规模：${researchResult.scale}` : '',
+      '',
+      researchResult.teamInference ? [
+        `团队技术栈：${researchResult.teamInference.techStack || ''}`,
+        `团队规模：${researchResult.teamInference.teamSize || ''}`,
+        `团队文化：${researchResult.teamInference.culture || ''}`,
+        `工作方式：${researchResult.teamInference.workStyle || ''}`,
+      ].filter(Boolean).join('\n') : '',
+      '',
+      researchResult.reputation ? [
+        `员工评价：${researchResult.reputation.employeeReview || ''}`,
+        `面试反馈：${researchResult.reputation.interviewFeedback || ''}`,
+        `行业声誉：${researchResult.reputation.industryReputation || ''}`,
+        researchResult.reputation.pros.length > 0 ? `优点：${researchResult.reputation.pros.join('、')}` : '',
+        researchResult.reputation.cons.length > 0 ? `缺点：${researchResult.reputation.cons.join('、')}` : '',
+      ].filter(Boolean).join('\n') : '',
+      '',
+      researchResult.salaryReference ? `薪资参考：${researchResult.salaryReference}` : '',
+      researchResult.verdict ? `综合判断：${researchResult.verdict}（${researchResult.verdictReason || ''}）` : '',
+    ].filter(Boolean).join('\n')
+    setCompanyInfo(info)
+  }, [researchResult])
 
   if (result) {
     return (
@@ -278,6 +326,107 @@ export default function ResumeTailor() {
             填入示例
           </button>
         </div>
+
+        <div className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 border border-amber-500/10 rounded-xl p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span className="text-xs font-medium text-amber-400">AI公司调研</span>
+            <span className="text-[10px] text-amber-500/60 ml-auto">推荐使用豆包大模型获得更准结果</span>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">输入公司名，AI自动识别公司并调研团队情况和风评</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleResearch()}
+              placeholder="输入公司名称，如：字节跳动"
+              className="flex-1 bg-navy-900/50 border border-white/5 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/30 transition-colors"
+            />
+            <button
+              onClick={handleResearch}
+              disabled={!companyName.trim() || researching}
+              className="px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm font-medium hover:bg-amber-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+            >
+              {researching ? '调研中...' : '开始调研'}
+            </button>
+          </div>
+
+          {researchError && (
+            <p className="text-xs text-red-400 mt-3">{researchError}</p>
+          )}
+
+          {researchResult && (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-emerald-400 font-medium">调研完成</span>
+                <button
+                  onClick={handleFillResearch}
+                  className="text-xs px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+                >
+                  填入下方文本框
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2 rounded-lg bg-white/[0.02]">
+                  <span className="text-slate-500">公司</span>
+                  <p className="text-slate-300 mt-0.5">{researchResult.companyName}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-white/[0.02]">
+                  <span className="text-slate-500">阶段</span>
+                  <p className="text-slate-300 mt-0.5">{researchResult.stage || '-'}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-white/[0.02]">
+                  <span className="text-slate-500">行业</span>
+                  <p className="text-slate-300 mt-0.5">{researchResult.industry || '-'}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-white/[0.02]">
+                  <span className="text-slate-500">综合判断</span>
+                  <p className={`mt-0.5 font-medium ${
+                    researchResult.verdict === '值得去' ? 'text-emerald-400' :
+                    researchResult.verdict === '可以考虑' ? 'text-blue-400' :
+                    researchResult.verdict === '需谨慎' ? 'text-amber-400' :
+                    'text-red-400'
+                  }`}>{researchResult.verdict}</p>
+                </div>
+              </div>
+              {researchResult.reputation && (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                    <span className="text-emerald-400">优点</span>
+                    {researchResult.reputation.pros.map((p, i) => (
+                      <p key={i} className="text-slate-400 mt-0.5">+ {p}</p>
+                    ))}
+                  </div>
+                  <div className="p-2 rounded-lg bg-red-500/5 border border-red-500/10">
+                    <span className="text-red-400">缺点</span>
+                    {researchResult.reputation.cons.map((c, i) => (
+                      <p key={i} className="text-slate-400 mt-0.5">- {c}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {researchResult.risks.length > 0 && (
+                <div className="p-2 rounded-lg bg-red-500/5 border border-red-500/10 text-xs">
+                  <span className="text-red-400 font-medium">风险提示</span>
+                  {researchResult.risks.map((r, i) => (
+                    <p key={i} className="text-slate-400 mt-0.5">
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${
+                        r.severity === '高' ? 'bg-red-400' : r.severity === '中' ? 'bg-amber-400' : 'bg-slate-400'
+                      }`} />
+                      {r.type}：{r.description}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <textarea
           value={companyInfo}
           onChange={(e) => setCompanyInfo(e.target.value)}

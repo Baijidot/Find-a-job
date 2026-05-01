@@ -25,6 +25,7 @@ import {
   validateSkillGapResult,
   validateSalaryCredibilityResult,
   validateResumeTailorResult,
+  validateCompanyResearchResult,
 } from './analysisSchemas'
 
 // ==================== 配置管理 ====================
@@ -1028,4 +1029,61 @@ ${companyInfo || '未提供公司信息，请根据JD推断'}
 ---`
 
   return await callAndParse(prompt, { maxTokens: 4096, validator: validateResumeTailorResult })
+}
+
+// ==================== 11. 公司调研 ====================
+
+export async function researchCompany(companyName, jd) {
+  const prompt = `你是一位企业调研分析师。请根据公司名称和JD信息，深度调研这家公司。
+
+调研要求：
+1. 识别公司全称、所属行业、规模阶段（创业/成长/成熟/上市）
+2. 根据JD推断团队情况：技术栈、团队规模、工作氛围
+3. 分析公司口碑和风评（基于公开信息）：
+   - 员工评价（加班情况、管理风格、福利待遇）
+   - 面试者反馈（面试难度、流程、体验）
+   - 行业声誉（技术实力、市场地位、发展前景）
+4. 给出风险提示（如有裁员、资金问题、负面新闻等）
+5. 总结：这家公司值不值得去
+
+请以如下 JSON 格式返回：
+{
+  "companyName": "公司全称",
+  "industry": "所属行业",
+  "stage": "创业期/成长期/成熟期/上市企业",
+  "scale": "公司规模描述",
+  "teamInference": {
+    "techStack": "推断的技术栈",
+    "teamSize": "推断的团队规模",
+    "culture": "推断的团队文化和工作氛围",
+    "workStyle": "工作方式（如：敏捷开发、远程办公等）"
+  },
+  "reputation": {
+    "employeeReview": "员工评价总结（2-3句话）",
+    "interviewFeedback": "面试者反馈总结（2-3句话）",
+    "industryReputation": "行业声誉（2-3句话）",
+    "pros": ["优点1", "优点2", "优点3"],
+    "cons": ["缺点1", "缺点2"]
+  },
+  "risks": [
+    {
+      "type": "风险类型",
+      "description": "具体描述",
+      "severity": "高/中/低"
+    }
+  ],
+  "salaryReference": "该公司该岗位的薪资参考范围",
+  "verdict": "值得去/可以考虑/需谨慎/不建议",
+  "verdictReason": "判断理由（2-3句话）",
+  "summary": "调研总结，可直接作为公司信息填入简历定制（2-3句话）"
+}
+
+公司名称：${companyName}
+
+JD信息：
+---
+${jd || '未提供JD'}
+---`
+
+  return await callAndParse(prompt, { maxTokens: 4096, validator: validateCompanyResearchResult })
 }
