@@ -2,8 +2,6 @@
 
 > 从 JD 看清真实工作 — AI 驱动的职位描述深度分析工具
 
-![拿个offer界面](https://via.placeholder.com/800x400/6366f1/ffffff?text=拿个offer+AI求职助手)
-
 ## ✨ 功能特性
 
 ### 🔍 核心 AI 分析（11 个独立维度）
@@ -73,19 +71,15 @@ npm run build
 3. 配置 API Base URL（如使用第三方服务）
 4. 选择模型（推荐 gpt-4o-mini）
 
-## 📸 功能截图
+## 📸 功能演示
 
-### 首页 - JD 快速扫描
-![首页截图](https://via.placeholder.com/600x400/6366f1/ffffff?text=首页+JD快速扫描)
+项目提供完整的功能演示，包括：
+- **首页 - JD 快速扫描**：实时分析JD真实情况
+- **简历定制优化**：AI逐段分析简历问题
+- **技能差距热力图**：可视化对比JD要求vs你的技能
+- **AI模拟面试**：基于JD生成问题并实时点评
 
-### 简历定制优化
-![简历定制](https://via.placeholder.com/600x400/10b981/ffffff?text=简历定制+AI逐段优化)
-
-### 技能差距热力图
-![技能热力图](https://via.placeholder.com/600x400/f59e0b/ffffff?text=技能差距+可视化分析)
-
-### AI模拟面试
-![模拟面试](https://via.placeholder.com/600x400/ec4899/ffffff?text=AI模拟面试+实时点评)
+所有功能均可通过本地部署体验。
 
 ## 🎯 使用场景
 
