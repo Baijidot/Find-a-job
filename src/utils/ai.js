@@ -37,10 +37,10 @@ const DEFAULT_CONFIG = {
   baseUrl: 'https://api.openai.com/v1',
   model: 'gpt-4o-mini',
   temperature: 0.7,
-  maxTokens: 4096,
+  maxTokens: 8192,
 }
 
-const DEFAULT_TIMEOUT_MS = 45000
+const DEFAULT_TIMEOUT_MS = 60000
 const DEFAULT_RETRY_TIMES = 2
 
 export function getConfig() {
@@ -134,7 +134,7 @@ export async function callLLM(prompt, options = {}) {
     max_tokens: options.maxTokens ?? config.maxTokens,
   }
 
-  if (options.responseFormat !== false) {
+  if (options.responseFormat === 'json_object') {
     body.response_format = { type: 'json_object' }
   }
 
@@ -383,6 +383,11 @@ function extractJSON(text) {
     }
   }
 
+  const trimmedStart = trimmed.trimStart()
+  if (trimmedStart.startsWith('{') && !trimmed.endsWith('}')) {
+    throw new Error('AI 返回被截断（max_tokens 不足）。请增大 max_tokens 或缩短输入内容后重试')
+  }
+
   const preview = trimmed.length > 300 ? trimmed.slice(0, 300) + '...(已截断)' : trimmed
   throw new Error(`无法解析 AI 返回的 JSON 数据，请重试\n\nAI原始返回：${preview}`)
 }
@@ -451,7 +456,7 @@ export async function analyzeJD(jd) {
 ${jd}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateAnalyzeJDResult })
+  return await callAndParse(prompt, { validator: validateAnalyzeJDResult })
 }
 
 /**
@@ -483,7 +488,7 @@ export async function analyzeSkills(jd) {
 ${jd}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateAnalyzeSkillsResult })
+  return await callAndParse(prompt, { validator: validateAnalyzeSkillsResult })
 }
 
 /**
@@ -529,7 +534,7 @@ ${jd}
 ${skillsText}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateGeneratePlanResult })
+  return await callAndParse(prompt, { validator: validateGeneratePlanResult })
 }
 
 // ==================== 2. 洞察报告（宏观市场视角）====================
@@ -595,7 +600,7 @@ export async function generateInsight(jd) {
 ${jd}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateInsightResult })
+  return await callAndParse(prompt, { validator: validateInsightResult })
 }
 
 // ==================== 3. 技能提取（技术栈全景视角）====================
@@ -670,7 +675,7 @@ export async function extractSkillMap(jd) {
 ${jd}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateSkillMapResult })
+  return await callAndParse(prompt, { validator: validateSkillMapResult })
 }
 
 // ==================== 4. 角色拆解（组织行为视角）====================
@@ -720,7 +725,7 @@ export async function breakdownRole(jd) {
 ${jd}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateRoleBreakdownResult })
+  return await callAndParse(prompt, { validator: validateRoleBreakdownResult })
 }
 
 // ==================== 5. 对比分析（决策视角）====================
@@ -780,7 +785,7 @@ ${jd1}
 ${jd2}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateCompareResult })
+  return await callAndParse(prompt, { validator: validateCompareResult })
 }
 
 // ==================== 6. 简历匹配分析（求职者视角）====================
@@ -850,7 +855,7 @@ ${jd}
 --- 候选人简历 ---
 ${resume}`
 
-  return await callAndParse(prompt, { maxTokens: 6000, validator: validateResumeMatchResult })
+  return await callAndParse(prompt, { maxTokens: 8192, validator: validateResumeMatchResult })
 }
 
 // ==================== 7. 面试问题生成（面试准备视角）====================
@@ -905,7 +910,7 @@ export async function generateInterviewQuestions(jd) {
 --- 目标岗位 JD ---
 ${jd}`
 
-  return await callAndParse(prompt, { maxTokens: 6000, validator: validateInterviewPrepResult })
+  return await callAndParse(prompt, { maxTokens: 8192, validator: validateInterviewPrepResult })
 }
 
 // ==================== 导出 ====================
@@ -942,7 +947,7 @@ export async function generateMockInterview(jd) {
 ${jd}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateMockInterviewResult })
+  return await callAndParse(prompt, { validator: validateMockInterviewResult })
 }
 
 export async function evaluateInterviewAnswer(question, answer, jdContext) {
@@ -1027,7 +1032,7 @@ ${jd}
 ${mySkills}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateSkillGapResult })
+  return await callAndParse(prompt, { validator: validateSkillGapResult })
 }
 
 // ==================== 9. 薪资可信度检测 ====================
@@ -1078,7 +1083,7 @@ export async function checkSalaryCredibility(jd) {
 ${jd}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateSalaryCredibilityResult })
+  return await callAndParse(prompt, { validator: validateSalaryCredibilityResult })
 }
 
 export { callAndParse }
@@ -1138,7 +1143,7 @@ ${resume}
 ${companyInfo || '未提供公司信息，请根据JD推断'}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateResumeTailorResult })
+  return await callAndParse(prompt, { validator: validateResumeTailorResult })
 }
 
 // ==================== 11. 公司调研 ====================
@@ -1197,5 +1202,5 @@ JD信息：
 ${jd || '未提供JD'}
 ---`
 
-  return await callAndParse(prompt, { maxTokens: 4096, validator: validateCompanyResearchResult })
+  return await callAndParse(prompt, { validator: validateCompanyResearchResult })
 }
