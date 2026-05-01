@@ -63,6 +63,45 @@ export function saveConfig(config) {
   }
 }
 
+// ==================== 输入截断 ====================
+
+const MAX_INPUT_CHARS = 8000
+
+function estimateTokens(text) {
+  return Math.ceil(text.length / 1.5)
+}
+
+function truncateText(text, maxChars = MAX_INPUT_CHARS) {
+  if (!text || text.length <= maxChars) return text
+  const half = Math.floor(maxChars / 2)
+  return text.slice(0, half) + '\n\n... (内容过长，中间部分已自动截断) ...\n\n' + text.slice(-half)
+}
+
+function truncatePrompt(prompt, maxChars = MAX_INPUT_CHARS) {
+  if (!prompt || prompt.length <= maxChars) return prompt
+
+  const parts = prompt.split(/(---)/g)
+  const result = []
+  let consumed = 0
+
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i]
+    if (consumed + part.length > maxChars) {
+      const remaining = maxChars - consumed - 100
+      if (remaining > 200) {
+        result.push(part.slice(0, Math.floor(remaining / 2)))
+        result.push('\n\n... (内容过长已截断) ...\n\n')
+        result.push(part.slice(-Math.floor(remaining / 2)))
+      }
+      break
+    }
+    result.push(part)
+    consumed += part.length
+  }
+
+  return result.join('')
+}
+
 // ==================== LLM 调用 ====================
 
 /**
@@ -75,6 +114,8 @@ export async function callLLM(prompt, options = {}) {
     throw new Error('请先在设置中配置 API Key')
   }
 
+  const truncatedPrompt = truncatePrompt(prompt, options.maxInputChars ?? MAX_INPUT_CHARS)
+
   const url = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
 
   const body = {
@@ -86,11 +127,15 @@ export async function callLLM(prompt, options = {}) {
       },
       {
         role: 'user',
-        content: prompt,
+        content: truncatedPrompt,
       },
     ],
     temperature: options.temperature ?? config.temperature,
     max_tokens: options.maxTokens ?? config.maxTokens,
+  }
+
+  if (options.responseFormat === 'json_object') {
+    body.response_format = { type: 'json_object' }
   }
 
   const maxRetries = options.retries ?? DEFAULT_RETRY_TIMES
@@ -124,7 +169,7 @@ export async function callLLM(prompt, options = {}) {
 
       const content = extractLLMContent(payload)
       if (!content) {
-        throw new Error('API 返回内容为空')
+        throw new Error('API 返回内容为空，请检查模型配置或尝试更换模型')
       }
 
       return content
@@ -173,25 +218,35 @@ function getRetryDelay(attempt) {
 }
 
 function extractLLMContent(payload) {
-  const messageContent = payload?.choices?.[0]?.message?.content
+  const message = payload?.choices?.[0]?.message
+  const messageContent = message?.content
+  const reasoningContent = message?.reasoning_content
   const outputText = payload?.output_text
 
-  if (typeof messageContent === 'string') {
+  if (typeof messageContent === 'string' && messageContent.trim()) {
     return messageContent.trim()
   }
 
   if (Array.isArray(messageContent)) {
-    return messageContent
+    const textParts = messageContent
+      .filter((item) => {
+        if (typeof item === 'string') return true
+        return item?.type === 'text' || item?.text || item?.content
+      })
       .map((item) => {
         if (typeof item === 'string') return item
         return item?.text || item?.content || ''
       })
-      .join('\n')
-      .trim()
+    const joined = textParts.join('\n').trim()
+    if (joined) return joined
   }
 
-  if (typeof outputText === 'string') {
+  if (typeof outputText === 'string' && outputText.trim()) {
     return outputText.trim()
+  }
+
+  if (typeof reasoningContent === 'string' && reasoningContent.trim()) {
+    return reasoningContent.trim()
   }
 
   return ''
@@ -200,11 +255,13 @@ function extractLLMContent(payload) {
 function sanitizeJsonCandidate(text) {
   return text
     .replace(/^\uFEFF/, '')
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, '\'')
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, '\'')
     .replace(/\/\/.*$/gm, '')
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/,\s*([}\]])/g, '$1')
+    .replace(/[\u0000-\u001F]+/g, ' ')
+    .replace(/:(\s*)(\d{2,})\.(\d+)/g, ':$1$2.$3')
     .trim()
 }
 
@@ -264,21 +321,49 @@ function findBalancedJsonCandidates(text) {
   return candidates.sort((a, b) => b.length - a.length)
 }
 
-function extractJSON(text) {
-  const candidates = [
-    text,
-    ...(text.match(/```(?:json)?\s*([\s\S]*?)```/gi) || []).map(block =>
-      block.replace(/```(?:json)?/i, '').replace(/```$/, '').trim()
-    ),
-    ...findBalancedJsonCandidates(text),
-  ]
+function tryParseJson(text) {
+  const sanitized = sanitizeJsonCandidate(text)
+  const parsed = safeJsonParse(sanitized)
+  if (parsed !== null) return parsed
 
-  for (const candidate of candidates) {
-    const sanitized = sanitizeJsonCandidate(candidate)
-    const parsed = safeJsonParse(sanitized)
-    if (parsed !== null) {
-      return parsed
-    }
+  const unescaped = sanitized
+    .replace(/\\(?!["\\/bfnrtu])/g, '')
+  return safeJsonParse(unescaped)
+}
+
+function extractJSON(text) {
+  if (!text || typeof text !== 'string') {
+    throw new Error('无法解析 AI 返回的 JSON 数据，请重试')
+  }
+
+  const trimmed = text.trim()
+
+  const parsed = tryParseJson(trimmed)
+  if (parsed !== null) return parsed
+
+  const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)```/gi
+  const codeBlocks = []
+  let match
+  while ((match = codeBlockRegex.exec(trimmed)) !== null) {
+    codeBlocks.push(match[1].trim())
+  }
+
+  for (const block of codeBlocks) {
+    const p = tryParseJson(block)
+    if (p !== null) return p
+  }
+
+  const balancedCandidates = findBalancedJsonCandidates(trimmed)
+  for (const candidate of balancedCandidates) {
+    const p = tryParseJson(candidate)
+    if (p !== null) return p
+  }
+
+  const jsonLikeRegex = /\{[\s\S]*?"[\s\S]*?\}/
+  const jsonLikeMatch = trimmed.match(jsonLikeRegex)
+  if (jsonLikeMatch) {
+    const p = tryParseJson(jsonLikeMatch[0])
+    if (p !== null) return p
   }
 
   throw new Error('无法解析 AI 返回的 JSON 数据，请重试')
@@ -296,8 +381,13 @@ function validateParsedResult(parsed, validator) {
 
 async function callAndParse(prompt, options = {}) {
   const raw = await callLLM(prompt, options)
-  const parsed = extractJSON(raw)
-  return validateParsedResult(parsed, options.validator)
+  try {
+    const parsed = extractJSON(raw)
+    return validateParsedResult(parsed, options.validator)
+  } catch (parseError) {
+    console.warn('JSON解析失败，原始返回内容:', raw.slice(0, 500))
+    throw parseError
+  }
 }
 
 // ==================== 1. 首页"快速扫描" ====================
