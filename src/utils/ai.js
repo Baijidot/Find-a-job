@@ -24,6 +24,7 @@ import {
   validateEvaluateAnswerResult,
   validateSkillGapResult,
   validateSalaryCredibilityResult,
+  validateResumeTailorResult,
 } from './analysisSchemas'
 
 // ==================== 配置管理 ====================
@@ -970,3 +971,61 @@ ${jd}
 }
 
 export { callAndParse }
+
+// ==================== 10. 简历定制优化 ====================
+
+export async function generateResumeTailor(jd, resume, companyInfo) {
+  const prompt = `你是一位资深简历优化师和招聘专家。请根据以下JD、候选人原始简历和公司信息，教候选人如何定制简历。
+
+分析要求：
+1. 逐段分析简历中需要修改的地方，给出具体改写建议
+2. 针对JD中的关键词，教候选人如何在简历中自然融入
+3. 根据公司/团队特性，调整简历的侧重点和语气
+4. 给出每个板块（个人总结、工作经历、项目经验、技能描述）的优化版本
+5. 标注哪些经历应该突出、哪些可以弱化
+
+请以如下 JSON 格式返回：
+{
+  "summary": "整体优化方向总结（2-3句话）",
+  "keywordStrategy": {
+    "jdKeywords": ["JD关键词1", "关键词2", "关键词3"],
+    "howToEmbed": "如何在简历中自然融入这些关键词（2-3句话）"
+  },
+  "sections": [
+    {
+      "section": "个人总结/工作经历/项目经验/技能描述/教育背景",
+      "original": "原始内容摘要",
+      "issue": "存在的问题",
+      "optimized": "优化后的版本（直接可用的文案）",
+      "reason": "为什么这样改（1-2句话）"
+    }
+  ],
+  "highlightStrategy": {
+    "emphasize": ["应该突出的经历1", "经历2"],
+    "downplay": ["可以弱化的内容1"]
+  },
+  "tailoringTips": [
+    "针对这家公司的定制建议1",
+    "建议2",
+    "建议3"
+  ],
+  "finalResume": "整合后的完整简历文案（可直接使用）"
+}
+
+以下是职位描述：
+---
+${jd}
+---
+
+以下是候选人原始简历/经历：
+---
+${resume}
+---
+
+以下是公司/团队信息：
+---
+${companyInfo || '未提供公司信息，请根据JD推断'}
+---`
+
+  return await callAndParse(prompt, { maxTokens: 4096, validator: validateResumeTailorResult })
+}

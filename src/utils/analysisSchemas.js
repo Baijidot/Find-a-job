@@ -436,3 +436,30 @@ export function validateInterviewPrepResult(value) {
     redFlags: stringList(data.redFlags, 'redFlags'),
   }
 }
+
+export function validateResumeTailorResult(value) {
+  const data = asObject(value, 'resumeTailor')
+  return {
+    summary: asString(data.summary, 'summary'),
+    keywordStrategy: data.keywordStrategy ? {
+      jdKeywords: stringList(data.keywordStrategy.jdKeywords, 'keywordStrategy.jdKeywords'),
+      howToEmbed: asString(data.keywordStrategy.howToEmbed, 'keywordStrategy.howToEmbed'),
+    } : null,
+    sections: asArray(data.sections, 'sections', (item, field) => {
+      const entry = asObject(item, field)
+      return {
+        section: asString(entry.section, `${field}.section`),
+        original: asString(entry.original, `${field}.original`, { optional: true }),
+        issue: asString(entry.issue, `${field}.issue`, { optional: true }),
+        optimized: asString(entry.optimized, `${field}.optimized`),
+        reason: asString(entry.reason, `${field}.reason`, { optional: true }),
+      }
+    }),
+    highlightStrategy: data.highlightStrategy ? {
+      emphasize: stringList(data.highlightStrategy.emphasize, 'highlightStrategy.emphasize'),
+      downplay: stringList(data.highlightStrategy.downplay, 'highlightStrategy.downplay'),
+    } : null,
+    tailoringTips: stringList(data.tailoringTips, 'tailoringTips'),
+    finalResume: asString(data.finalResume, 'finalResume'),
+  }
+}

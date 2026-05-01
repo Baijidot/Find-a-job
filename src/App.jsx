@@ -15,6 +15,7 @@ import InterviewPrep from './components/pages/InterviewPrep'
 import MockInterview from './components/pages/MockInterview'
 import SkillGap from './components/pages/SkillGap'
 import SalaryCheck from './components/pages/SalaryCheck'
+import ResumeTailor from './components/pages/ResumeTailor'
 import Favorites from './components/pages/Favorites'
 import History from './components/pages/History'
 import HelpFeedback from './components/pages/HelpFeedback'
@@ -153,6 +154,8 @@ export default function App() {
         return <SkillGap />
       case 'salaryCheck':
         return <SalaryCheck />
+      case 'resumeTailor':
+        return <ResumeTailor />
       case 'insights':
         return <InsightReport />
       case 'skills':
